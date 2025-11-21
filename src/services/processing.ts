@@ -87,7 +87,8 @@ export class ProcessingService {
     const quizPayload = await this.gemini.generateQuiz({
       title,
       transcript,
-      questionCount
+      questionCount,
+      additionalPrompt: this.config.quizAdditionalPrompt
     });
 
     const form = await this.forms.createQuizForm(quizPayload);

@@ -5,6 +5,7 @@ const configSchema = z.object({
   googleDriveFolderId: z.string().min(1, "GOOGLE_DRIVE_FOLDER_ID is required"),
   googleAllowedDomain: z.string().optional(),
   geminiModel: z.string().default("gemini-2.5-flash"),
+  quizAdditionalPrompt: z.string().optional(),
   firestoreCollection: z.string().min(1, "FIRESTORE_COLLECTION is required"),
   gcloudProject: z.string().optional()
 });
@@ -17,6 +18,7 @@ export function loadConfig(env = process.env): AppConfig {
     googleDriveFolderId: env.GOOGLE_DRIVE_FOLDER_ID,
     googleAllowedDomain: env.GOOGLE_ALLOWED_DOMAIN,
     geminiModel: env.GEMINI_MODEL,
+    quizAdditionalPrompt: env.QUIZ_ADDITIONAL_PROMPT,
     firestoreCollection: env.FIRESTORE_COLLECTION,
     gcloudProject: env.GCLOUD_PROJECT
   });

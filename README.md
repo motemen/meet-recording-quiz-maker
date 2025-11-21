@@ -15,9 +15,13 @@ Cloud Run service that turns Google Meet recordings (Docs transcripts in a Drive
 Required env vars:
 
 - `GOOGLE_DRIVE_FOLDER_ID`: target Drive folder to scan.
-- `GEMINI_MODEL`: Gemini model name (default: `gemini-2.5-flash`).
-- `GEMINI_API_KEY`: API key for Gemini (used by Vercel AI SDK; read from env).
+- `GOOGLE_GENERATIVE_AI_API_KEY`: API key for Gemini (used by Vercel AI SDK; read from env).
 - `FIRESTORE_COLLECTION`: Firestore collection name.
+
+Optional:
+
+- `GEMINI_MODEL`: Gemini model name (default: `gemini-2.5-flash`).
+- `QUIZ_ADDITIONAL_PROMPT`: extra instructions appended to the Gemini prompt (e.g. `Use Japanese`).
 - `GOOGLE_ALLOWED_DOMAIN`: optional domain check for owners.
 - `PORT`: server port (default: `8080`).
 
