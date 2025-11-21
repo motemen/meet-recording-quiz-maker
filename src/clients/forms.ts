@@ -20,9 +20,7 @@ export class FormsClient {
     const createRes = await this.forms.forms.create({
       requestBody: {
         info: {
-          title: quiz.title,
-          documentTitle: quiz.title,
-          description: quiz.summary
+          title: quiz.title
         }
       }
     });
@@ -33,36 +31,56 @@ export class FormsClient {
     }
 
     const requests: forms_v1.Schema$Request[] = [
+      ...(quiz.summary
+        ? [
+            {
+              updateFormInfo: {
+                info: { description: quiz.summary },
+                updateMask: "description"
+              }
+            } satisfies forms_v1.Schema$Request
+          ]
+        : []),
       {
         updateSettings: {
           settings: { quizSettings: { isQuiz: true } },
           updateMask: "quizSettings.isQuiz"
         }
       },
-      ...quiz.questions.map((q, index): forms_v1.Schema$Request => ({
-        createItem: {
-          item: {
-            title: q.question,
-            questionItem: {
-              question: {
-                required: true,
-                choiceQuestion: {
-                  type: "RADIO",
-                  options: q.options.map((option) => ({ value: option })),
-                  shuffle: false
+      ...quiz.questions.map((q, index): forms_v1.Schema$Request => {
+        const correctValue = q.options[q.correctOptionIndex] ?? q.options[0] ?? "";
+        return {
+          createItem: {
+            item: {
+              title: q.question,
+              questionItem: {
+                question: {
+                  required: true,
+                  choiceQuestion: {
+                    type: "RADIO",
+                    options: q.options.map((option) => ({ value: option })),
+                    shuffle: false
+                  },
+                  grading: {
+                    correctAnswers: { answers: [{ value: correctValue }] },
+                    whenRight: q.rationale ? { text: q.rationale } : undefined,
+                    whenWrong: q.rationale ? { text: q.rationale } : undefined
+                  }
                 }
               }
-            }
-          },
-          location: { index }
-        }
-      }))
+            },
+            location: { index }
+          }
+        };
+      })
     ];
 
-    if (requests.length > 0) {
+    const filteredRequests = requests.filter(Boolean) as forms_v1.Schema$Request[];
+
+    if (filteredRequests.length > 0) {
       await this.forms.forms.batchUpdate({
         formId,
-        requestBody: { requests }
+        requestBody: { requests: filteredRequests }
       });
     }
 

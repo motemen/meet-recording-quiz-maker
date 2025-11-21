@@ -1,5 +1,5 @@
 import { generateObject } from "ai";
-import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { google } from "@ai-sdk/google";
 import { z } from "zod";
 import { QuizPayload } from "../types";
 
@@ -24,22 +24,14 @@ export interface GenerateQuizParams {
 
 export class GeminiClient {
   private modelName: string;
-  private apiKey: string;
-  private modelFactory: ReturnType<typeof createGoogleGenerativeAI>;
 
-  constructor(options: { modelName: string; apiKey?: string }) {
+  constructor(options: { modelName: string }) {
     this.modelName = options.modelName;
-    const apiKey = options.apiKey ?? process.env.GEMINI_API_KEY;
-    if (!apiKey) {
-      throw new Error("GEMINI_API_KEY is required for Gemini access");
-    }
-    this.apiKey = apiKey;
-    this.modelFactory = createGoogleGenerativeAI({ apiKey: this.apiKey });
   }
 
   async generateQuiz(params: GenerateQuizParams): Promise<QuizPayload> {
     const { title, transcript, questionCount } = params;
-    const model = this.modelFactory(this.modelName);
+    const model = google(this.modelName);
     const { object } = await generateObject<z.ZodType<QuizPayload>, "object", QuizPayload>({
       model,
       schema: QuizSchema,
