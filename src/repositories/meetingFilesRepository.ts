@@ -1,5 +1,5 @@
 import { Firestore } from "@google-cloud/firestore";
-import { MeetingFile, ProcessingStatus } from "../types";
+import type { MeetingFile, ProcessingStatus } from "../types";
 
 export class MeetingFilesRepository {
   private collectionName: string;
@@ -21,17 +21,14 @@ export class MeetingFilesRepository {
   }
 
   async listRecent(limit = 20): Promise<MeetingFile[]> {
-    const snapshot = await this.collection()
-      .orderBy("updatedAt", "desc")
-      .limit(limit)
-      .get();
+    const snapshot = await this.collection().orderBy("updatedAt", "desc").limit(limit).get();
     return snapshot.docs.map((doc) => doc.data() as MeetingFile);
   }
 
   async setStatus(
     fileId: string,
     status: ProcessingStatus,
-    payload: Partial<MeetingFile> = {}
+    payload: Partial<MeetingFile> = {},
   ): Promise<void> {
     const now = new Date().toISOString();
     await this.collection()
@@ -44,7 +41,7 @@ export class MeetingFilesRepository {
           updatedAt: now,
           ...payload,
         },
-        { merge: true }
+        { merge: true },
       );
   }
 }

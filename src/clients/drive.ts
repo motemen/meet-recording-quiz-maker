@@ -1,4 +1,4 @@
-import { google, type drive_v3 } from "googleapis";
+import { type drive_v3, google } from "googleapis";
 import { logger } from "../logger";
 
 export interface DriveFileMetadata {
@@ -14,7 +14,7 @@ export class DriveClient {
 
   constructor() {
     const auth = new google.auth.GoogleAuth({
-      scopes: ["https://www.googleapis.com/auth/drive.readonly"]
+      scopes: ["https://www.googleapis.com/auth/drive.readonly"],
     });
     void this.logCaller(auth);
     this.drive = google.drive({ version: "v3", auth });
@@ -24,13 +24,13 @@ export class DriveClient {
     try {
       const client = await auth.getClient();
       const token = await client.getAccessToken();
-      const tokenValue = typeof token === "string" ? token : token?.token ?? undefined;
+      const tokenValue = typeof token === "string" ? token : (token?.token ?? undefined);
       if (!tokenValue) {
         logger.warn("drive_auth_no_token");
         return;
       }
       const res = await fetch(
-        `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(tokenValue)}`
+        `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(tokenValue)}`,
       );
       if (!res.ok) {
         logger.warn("drive_auth_tokeninfo_failed", { status: res.status });
@@ -48,24 +48,26 @@ export class DriveClient {
       q: `'${folderId}' in parents and trashed = false`,
       fields: "files(id, name, mimeType, modifiedTime, properties)",
       orderBy: "modifiedTime desc",
-      pageSize
+      pageSize,
     });
 
     return (
-      res.data.files?.map((file) => ({
-        id: file.id!,
-        name: file.name ?? undefined,
-        mimeType: file.mimeType ?? undefined,
-        modifiedTime: file.modifiedTime ?? undefined,
-        properties: file.properties ?? undefined
-      })) ?? []
+      res.data.files
+        ?.filter((file) => file.id)
+        .map((file) => ({
+          id: file.id as string,
+          name: file.name ?? undefined,
+          mimeType: file.mimeType ?? undefined,
+          modifiedTime: file.modifiedTime ?? undefined,
+          properties: file.properties ?? undefined,
+        })) ?? []
     );
   }
 
   async getFileMetadata(fileId: string): Promise<DriveFileMetadata> {
     const res = await this.drive.files.get({
       fileId,
-      fields: "id, name, mimeType, modifiedTime, properties"
+      fields: "id, name, mimeType, modifiedTime, properties",
     });
 
     if (!res.data.id) {
@@ -77,14 +79,14 @@ export class DriveClient {
       name: res.data.name ?? undefined,
       mimeType: res.data.mimeType ?? undefined,
       modifiedTime: res.data.modifiedTime ?? undefined,
-      properties: res.data.properties ?? undefined
+      properties: res.data.properties ?? undefined,
     };
   }
 
   async exportDocumentText(fileId: string): Promise<string> {
     const res = await this.drive.files.export(
       { fileId, mimeType: "text/plain" },
-      { responseType: "arraybuffer" }
+      { responseType: "arraybuffer" },
     );
 
     if (!res.data) return "";
@@ -95,7 +97,7 @@ export class DriveClient {
   async setFileProperties(fileId: string, properties: Record<string, string>): Promise<void> {
     await this.drive.files.update({
       fileId,
-      requestBody: { properties }
+      requestBody: { properties },
     });
   }
 }

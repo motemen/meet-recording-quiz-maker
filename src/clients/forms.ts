@@ -1,5 +1,5 @@
-import { google, forms_v1 } from "googleapis";
-import { QuizPayload } from "../types";
+import { type forms_v1, google } from "googleapis";
+import type { QuizPayload } from "../types";
 
 export interface CreateFormResult {
   formId: string;
@@ -11,7 +11,10 @@ export class FormsClient {
 
   constructor() {
     const auth = new google.auth.GoogleAuth({
-      scopes: ["https://www.googleapis.com/auth/forms.body", "https://www.googleapis.com/auth/forms.responses.readonly"]
+      scopes: [
+        "https://www.googleapis.com/auth/forms.body",
+        "https://www.googleapis.com/auth/forms.responses.readonly",
+      ],
     });
     this.forms = google.forms({ version: "v1", auth });
   }
@@ -20,9 +23,9 @@ export class FormsClient {
     const createRes = await this.forms.forms.create({
       requestBody: {
         info: {
-          title: quiz.title
-        }
-      }
+          title: quiz.title,
+        },
+      },
     });
 
     const formId = createRes.data.formId;
@@ -34,24 +37,24 @@ export class FormsClient {
       {
         updateFormInfo: {
           info: { documentTitle: quiz.title },
-          updateMask: "documentTitle"
-        }
+          updateMask: "documentTitle",
+        },
       },
       ...(quiz.summary
         ? [
             {
               updateFormInfo: {
                 info: { description: quiz.summary },
-                updateMask: "description"
-              }
-            } satisfies forms_v1.Schema$Request
+                updateMask: "description",
+              },
+            } satisfies forms_v1.Schema$Request,
           ]
         : []),
       {
         updateSettings: {
           settings: { quizSettings: { isQuiz: true } },
-          updateMask: "quizSettings.isQuiz"
-        }
+          updateMask: "quizSettings.isQuiz",
+        },
       },
       ...quiz.questions.map((q, index): forms_v1.Schema$Request => {
         const correctValue = q.options[q.correctOptionIndex] ?? q.options[0] ?? "";
@@ -65,20 +68,20 @@ export class FormsClient {
                   choiceQuestion: {
                     type: "RADIO",
                     options: q.options.map((option) => ({ value: option })),
-                    shuffle: false
+                    shuffle: false,
                   },
                   grading: {
                     correctAnswers: { answers: [{ value: correctValue }] },
                     whenRight: q.rationale ? { text: q.rationale } : undefined,
-                    whenWrong: q.rationale ? { text: q.rationale } : undefined
-                  }
-                }
-              }
+                    whenWrong: q.rationale ? { text: q.rationale } : undefined,
+                  },
+                },
+              },
             },
-            location: { index }
-          }
+            location: { index },
+          },
         };
-      })
+      }),
     ];
 
     const filteredRequests = requests.filter(Boolean) as forms_v1.Schema$Request[];
@@ -86,7 +89,7 @@ export class FormsClient {
     if (filteredRequests.length > 0) {
       await this.forms.forms.batchUpdate({
         formId,
-        requestBody: { requests: filteredRequests }
+        requestBody: { requests: filteredRequests },
       });
     }
 
@@ -95,7 +98,7 @@ export class FormsClient {
 
     return {
       formId,
-      formUrl
+      formUrl,
     };
   }
 }
