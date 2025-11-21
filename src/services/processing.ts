@@ -1,10 +1,10 @@
-import { AppConfig } from "../config";
-import { DriveClient, DriveFileMetadata } from "../clients/drive";
-import { FormsClient } from "../clients/forms";
-import { GeminiClient } from "../clients/gemini";
-import { MeetingFilesRepository } from "../repositories/meetingFilesRepository";
-import { MeetingFile, QuizPayload } from "../types";
+import type { DriveClient, DriveFileMetadata } from "../clients/drive";
+import type { FormsClient } from "../clients/forms";
+import type { GeminiClient } from "../clients/gemini";
+import type { AppConfig } from "../config";
 import { logger } from "../logger";
+import type { MeetingFilesRepository } from "../repositories/meetingFilesRepository";
+import type { MeetingFile } from "../types";
 
 export interface ProcessingServiceDeps {
   config: AppConfig;
@@ -42,9 +42,7 @@ export class ProcessingService {
       try {
         const existing = await this.repo.get(file.id);
         const unchanged =
-          existing &&
-          existing.status === "succeeded" &&
-          !this.hasMetadataChanged(existing, file);
+          existing && existing.status === "succeeded" && !this.hasMetadataChanged(existing, file);
 
         if (unchanged) {
           logger.debug("scan_file_skipped_unchanged", { fileId: file.id });
@@ -76,7 +74,7 @@ export class ProcessingService {
       fileId,
       force,
       requestedQuestionCount: questionCount,
-      hasMetadata: Boolean(metadata)
+      hasMetadata: Boolean(metadata),
     });
     const existing = await this.repo.get(fileId);
 
@@ -92,32 +90,32 @@ export class ProcessingService {
       folderId: this.config.googleDriveFolderId,
       title,
       modifiedTime: meta.modifiedTime,
-      questionCount
+      questionCount,
     });
 
     const transcript = await this.drive.exportDocumentText(fileId);
     logger.info("process_file_transcript_fetched", {
       fileId,
-      transcriptLength: transcript.length
+      transcriptLength: transcript.length,
     });
     const quizPayload = await this.gemini.generateQuiz({
       title,
       transcript,
       questionCount,
-      additionalPrompt: this.config.quizAdditionalPrompt
+      additionalPrompt: this.config.quizAdditionalPrompt,
     });
     logger.info("process_file_quiz_generated", {
       fileId,
       questionCount: quizPayload.questions.length,
       hasSummary: Boolean(quizPayload.summary),
-      usedAdditionalPrompt: Boolean(this.config.quizAdditionalPrompt)
+      usedAdditionalPrompt: Boolean(this.config.quizAdditionalPrompt),
     });
 
     const form = await this.forms.createQuizForm(quizPayload);
     logger.info("process_file_form_created", {
       fileId,
       formId: form.formId,
-      formUrl: form.formUrl
+      formUrl: form.formUrl,
     });
 
     await this.repo.setStatus(fileId, "succeeded", {
@@ -127,7 +125,7 @@ export class ProcessingService {
       formId: form.formId,
       formUrl: form.formUrl,
       geminiSummary: quizPayload.summary,
-      questionCount: quizPayload.questions.length
+      questionCount: quizPayload.questions.length,
     });
 
     const record = await this.repo.get(fileId);

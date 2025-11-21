@@ -1,7 +1,7 @@
-import { generateObject } from "ai";
 import { google } from "@ai-sdk/google";
+import { generateObject } from "ai";
 import { z } from "zod";
-import { QuizPayload } from "../types";
+import type { QuizPayload } from "../types";
 
 const QuizSchema: z.ZodType<QuizPayload> = z.object({
   title: z.string(),
@@ -11,9 +11,9 @@ const QuizSchema: z.ZodType<QuizPayload> = z.object({
       question: z.string(),
       options: z.array(z.string()).min(2),
       correctOptionIndex: z.number().int(),
-      rationale: z.string().optional()
-    })
-  )
+      rationale: z.string().optional(),
+    }),
+  ),
 });
 
 export interface GenerateQuizParams {
@@ -37,7 +37,7 @@ export class GeminiClient {
       model,
       schema: QuizSchema,
       output: "object",
-      prompt: this.buildPrompt(title, transcript, questionCount, additionalPrompt)
+      prompt: this.buildPrompt(title, transcript, questionCount, additionalPrompt),
     });
     return {
       title: object.title || `Quiz for ${title}`,
@@ -47,8 +47,8 @@ export class GeminiClient {
           question: q.question,
           options: q.options,
           correctOptionIndex: q.correctOptionIndex,
-          rationale: q.rationale ?? ""
-        })) ?? []
+          rationale: q.rationale ?? "",
+        })) ?? [],
     };
   }
 
@@ -56,7 +56,7 @@ export class GeminiClient {
     title: string,
     transcript: string,
     questionCount: number,
-    additionalPrompt?: string
+    additionalPrompt?: string,
   ): string {
     const extra = additionalPrompt?.trim();
     const extraSection = extra ? `\nAdditional instructions: ${extra}\n` : "";

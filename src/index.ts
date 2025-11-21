@@ -1,12 +1,12 @@
 import "dotenv/config";
-import { Hono } from "hono";
 import { serve } from "@hono/node-server";
-import { loadConfig } from "./config.js";
-import { logger } from "./logger.js";
-import { MeetingFilesRepository } from "./repositories/meetingFilesRepository.js";
+import { Hono } from "hono";
 import { DriveClient } from "./clients/drive.js";
 import { FormsClient } from "./clients/forms.js";
 import { GeminiClient } from "./clients/gemini.js";
+import { loadConfig } from "./config.js";
+import { logger } from "./logger.js";
+import { MeetingFilesRepository } from "./repositories/meetingFilesRepository.js";
 import { ProcessingService } from "./services/processing.js";
 import { extractFileIdFromUrl } from "./utils/drive.js";
 
@@ -31,7 +31,7 @@ async function bootstrap() {
     repo,
     driveClient,
     formsClient,
-    geminiClient
+    geminiClient,
   });
 
   app.get("/healthz", (c) => {
@@ -51,7 +51,7 @@ async function bootstrap() {
 
   app.post("/tasks/process", async (c) => {
     const body = await readJsonBody<{ fileId?: unknown; force?: unknown; questionCount?: unknown }>(
-      c.req.raw
+      c.req.raw,
     );
     if (!body) return c.json({ error: "Invalid JSON body" }, 400);
 
@@ -69,14 +69,14 @@ async function bootstrap() {
     logger.info("http_process_requested", {
       fileId,
       force: !!force,
-      questionCount: numericQuestionCount
+      questionCount: numericQuestionCount,
     });
 
     try {
       const record = await service.processFile({
         fileId,
         force: !!force,
-        questionCount: numericQuestionCount
+        questionCount: numericQuestionCount,
       });
       return c.json(record);
     } catch (error) {
@@ -86,9 +86,11 @@ async function bootstrap() {
   });
 
   app.post("/manual", async (c) => {
-    const body = await readJsonBody<{ driveUrl?: unknown; force?: unknown; questionCount?: unknown }>(
-      c.req.raw
-    );
+    const body = await readJsonBody<{
+      driveUrl?: unknown;
+      force?: unknown;
+      questionCount?: unknown;
+    }>(c.req.raw);
     if (!body) return c.json({ error: "Invalid JSON body" }, 400);
 
     const { driveUrl, force, questionCount } = body;
@@ -110,14 +112,14 @@ async function bootstrap() {
       driveUrl,
       fileId,
       force: !!force,
-      questionCount: numericQuestionCount
+      questionCount: numericQuestionCount,
     });
 
     try {
       const record = await service.processFile({
         fileId,
         force: !!force,
-        questionCount: numericQuestionCount
+        questionCount: numericQuestionCount,
       });
       return c.json(record);
     } catch (error) {
@@ -184,11 +186,11 @@ async function bootstrap() {
   serve(
     {
       fetch: app.fetch,
-      port
+      port,
     },
     () => {
       logger.info("server_started", { port });
-    }
+    },
   );
 }
 

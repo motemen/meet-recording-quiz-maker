@@ -21,5 +21,5 @@ export const logger = {
   info: (message: string, fields?: LogFields) => log("info", message, fields),
   warn: (message: string, fields?: LogFields) => log("warn", message, fields),
   error: (message: string, fields?: LogFields) => log("error", message, fields),
-  debug: (message: string, fields?: LogFields) => log("debug", message, fields)
+  debug: (message: string, fields?: LogFields) => log("debug", message, fields),
 };
