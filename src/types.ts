@@ -2,7 +2,7 @@ export type ProcessingStatus = "pending" | "processing" | "succeeded" | "failed"
 
 export interface MeetingFile {
   fileId: string;
-  folderId: string;
+  folderId?: string;
   title?: string;
   status: ProcessingStatus;
   modifiedTime?: string;

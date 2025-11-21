@@ -30,6 +30,9 @@ export class ProcessingService {
   }
 
   async scanFolder(): Promise<{ processed: number; skipped: number; errors: number }> {
+    if (!this.config.googleDriveFolderId) {
+      throw new Error("GOOGLE_DRIVE_FOLDER_ID is required for folder scanning");
+    }
     logger.info("scan_folder_start", { folderId: this.config.googleDriveFolderId });
     const files = await this.drive.listFolderFiles(this.config.googleDriveFolderId);
     logger.info("scan_folder_listed", { fileCount: files.length });
