@@ -1,4 +1,4 @@
-import { google, drive_v3 } from "googleapis";
+import { google, type drive_v3 } from "googleapis";
 import { logger } from "../logger";
 
 export interface DriveFileMetadata {
@@ -20,7 +20,7 @@ export class DriveClient {
     this.drive = google.drive({ version: "v3", auth });
   }
 
-  private async logCaller(auth: google.auth.GoogleAuth): Promise<void> {
+  private async logCaller(auth: InstanceType<typeof google.auth.GoogleAuth>): Promise<void> {
     try {
       const client = await auth.getClient();
       const token = await client.getAccessToken();
@@ -29,9 +29,15 @@ export class DriveClient {
         logger.warn("drive_auth_no_token");
         return;
       }
-      const oauth2 = google.oauth2({ version: "v2", auth });
-      const info = await oauth2.tokeninfo({ access_token: tokenValue });
-      logger.info("drive_auth_caller", { email: info.data.email, scopes: info.data.scope });
+      const res = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(tokenValue)}`
+      );
+      if (!res.ok) {
+        logger.warn("drive_auth_tokeninfo_failed", { status: res.status });
+        return;
+      }
+      const info = (await res.json()) as { email?: string; scope?: string };
+      logger.info("drive_auth_caller", { email: info.email, scopes: info.scope });
     } catch (error) {
       logger.warn("drive_auth_inspect_failed", { error });
     }

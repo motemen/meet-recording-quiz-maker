@@ -1,5 +1,20 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+import { generateObject } from "ai";
+import { createGoogleGenerativeAI } from "@ai-sdk/google";
+import { z } from "zod";
 import { QuizPayload } from "../types";
+
+const QuizSchema: z.ZodType<QuizPayload> = z.object({
+  title: z.string(),
+  summary: z.string(),
+  questions: z.array(
+    z.object({
+      question: z.string(),
+      options: z.array(z.string()).min(2),
+      correctOptionIndex: z.number().int(),
+      rationale: z.string().optional()
+    })
+  )
+});
 
 export interface GenerateQuizParams {
   title: string;
@@ -9,7 +24,8 @@ export interface GenerateQuizParams {
 
 export class GeminiClient {
   private modelName: string;
-  private client: GoogleGenerativeAI;
+  private apiKey: string;
+  private modelFactory: ReturnType<typeof createGoogleGenerativeAI>;
 
   constructor(options: { modelName: string; apiKey?: string }) {
     this.modelName = options.modelName;
@@ -17,22 +33,29 @@ export class GeminiClient {
     if (!apiKey) {
       throw new Error("GEMINI_API_KEY is required for Gemini access");
     }
-
-    this.client = new GoogleGenerativeAI(apiKey);
+    this.apiKey = apiKey;
+    this.modelFactory = createGoogleGenerativeAI({ apiKey: this.apiKey });
   }
 
   async generateQuiz(params: GenerateQuizParams): Promise<QuizPayload> {
     const { title, transcript, questionCount } = params;
-    const model = this.client.getGenerativeModel({ model: this.modelName });
-    const prompt = this.buildPrompt(title, transcript, questionCount);
-    const result = await model.generateContent(prompt);
-    const text = result.response.text();
-
-    const parsed = this.parseQuizJson(text);
+    const model = this.modelFactory(this.modelName);
+    const { object } = await generateObject<z.ZodType<QuizPayload>, "object", QuizPayload>({
+      model,
+      schema: QuizSchema,
+      output: "object",
+      prompt: this.buildPrompt(title, transcript, questionCount)
+    });
     return {
-      title: parsed.title ?? `Quiz for ${title}`,
-      summary: parsed.summary ?? "",
-      questions: parsed.questions ?? []
+      title: object.title || `Quiz for ${title}`,
+      summary: object.summary || "",
+      questions:
+        object.questions?.map((q) => ({
+          question: q.question,
+          options: q.options,
+          correctOptionIndex: q.correctOptionIndex,
+          rationale: q.rationale ?? ""
+        })) ?? []
     };
   }
 
@@ -40,32 +63,10 @@ export class GeminiClient {
     return `
 You are creating a quiz based on a meeting transcript titled "${title}".
 Generate ${questionCount} multiple-choice questions that test understanding of the meeting.
-Return JSON only in the following shape:
-{
-  "title": string,
-  "summary": string,
-  "questions": [
-    {
-      "question": string,
-      "options": [string, string, string, string],
-      "correctOptionIndex": number (0-based),
-      "rationale": string
-    }
-  ]
-}
+Return JSON that matches the provided schema. Use exactly ${questionCount} questions and at least 4 plausible options per question. The correctOptionIndex must be 0-based.
 
 Transcript:
 ${transcript}
     `.trim();
-  }
-
-  private parseQuizJson(text: string): Partial<QuizPayload> {
-    try {
-      const jsonStart = text.indexOf("{");
-      const jsonText = jsonStart >= 0 ? text.slice(jsonStart) : text;
-      return JSON.parse(jsonText);
-    } catch (error) {
-      throw new Error(`Failed to parse Gemini response as JSON: ${String(error)}; response=${text}`);
-    }
   }
 }

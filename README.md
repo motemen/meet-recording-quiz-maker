@@ -6,7 +6,7 @@ Cloud Run service that turns Google Meet recordings (Docs transcripts in a Drive
 
 - Cloud Run service (Express) with routes for scanning (`/tasks/scan`), per-file processing (`/tasks/process`), manual submission (`/manual`), status lookup (`/files/:fileId`), and a minimal UI (`/`).
 - Drive client: lists `GOOGLE_DRIVE_FOLDER_ID`, fetches metadata, exports Docs to text.
-- Gemini client: generates quiz JSON from transcript.
+- Gemini client: generates quiz JSON from transcript using Vercel AI SDK (`generateObject`) with schema validation.
 - Forms client: creates a quiz-form (radio MCQ) and returns `formId`/`formUrl`.
 - Firestore: collection stores `fileId`, `status`, `modifiedTime`, `title`, `formId`, `formUrl`, `geminiSummary`, `questionCount`, timestamps, and `error`.
 
@@ -16,7 +16,7 @@ Required env vars:
 
 - `GOOGLE_DRIVE_FOLDER_ID`: target Drive folder to scan.
 - `GEMINI_MODEL`: Gemini model name (default: `gemini-2.5-flash`).
-- `GEMINI_API_KEY`: API key for Gemini (or set up auth for Vertex if preferred).
+- `GEMINI_API_KEY`: API key for Gemini (used by Vercel AI SDK).
 - `FIRESTORE_COLLECTION`: Firestore collection name.
 - `GOOGLE_ALLOWED_DOMAIN`: optional domain check for owners.
 - `PORT`: server port (default: `8080`).

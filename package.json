@@ -14,13 +14,15 @@
     "lint": "echo \"add lint tool\" && exit 0"
   },
   "dependencies": {
+    "@ai-sdk/google": "^2.0.40",
     "@google-cloud/firestore": "^7.9.0",
-    "@google/generative-ai": "^0.11.0",
     "@hono/node-server": "^1.19.6",
+    "ai": "^5.0.98",
     "dotenv": "^17.2.3",
+    "google-auth-library": "^10.5.0",
     "googleapis": "^134.0.0",
     "hono": "^4.10.6",
-    "zod": "^3.23.8"
+    "zod": "^4.1.12"
   },
   "devDependencies": {
     "@types/node": "^22.8.0",
