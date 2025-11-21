@@ -31,6 +31,12 @@ export class FormsClient {
     }
 
     const requests: forms_v1.Schema$Request[] = [
+      {
+        updateFormInfo: {
+          info: { documentTitle: quiz.title },
+          updateMask: "documentTitle"
+        }
+      },
       ...(quiz.summary
         ? [
             {
