@@ -1,4 +1,5 @@
-import express from "express";
+import { Hono } from "hono";
+import { serve } from "@hono/node-server";
 import { loadConfig } from "./config.js";
 import { logger } from "./logger.js";
 import { MeetingFilesRepository } from "./repositories/meetingFilesRepository.js";
@@ -8,10 +9,17 @@ import { GeminiClient } from "./clients/gemini.js";
 import { ProcessingService } from "./services/processing.js";
 import { extractFileIdFromUrl } from "./utils/drive.js";
 
+async function readJsonBody<T>(request: Request): Promise<T | undefined> {
+  try {
+    return await request.json();
+  } catch {
+    return undefined;
+  }
+}
+
 async function bootstrap() {
   const config = loadConfig();
-  const app = express();
-  app.use(express.json());
+  const app = new Hono();
 
   const repo = new MeetingFilesRepository({ collectionName: config.firestoreCollection });
   const driveClient = new DriveClient();
@@ -25,63 +33,93 @@ async function bootstrap() {
     geminiClient
   });
 
-  app.get("/healthz", (_req, res) => {
-    res.json({ ok: true });
+  app.get("/healthz", (c) => {
+    return c.json({ ok: true });
   });
 
-  app.post("/tasks/scan", async (_req, res) => {
+  app.post("/tasks/scan", async (c) => {
     try {
       const result = await service.scanFolder();
-      res.json(result);
+      return c.json(result);
     } catch (error) {
       logger.error("scan failed", { error });
-      res.status(500).json({ error: "scan failed", details: String(error) });
+      return c.json({ error: "scan failed", details: String(error) }, 500);
     }
   });
 
-  app.post("/tasks/process", async (req, res) => {
-    const { fileId, force, questionCount } = req.body ?? {};
+  app.post("/tasks/process", async (c) => {
+    const body = await readJsonBody<{ fileId?: unknown; force?: unknown; questionCount?: unknown }>(
+      c.req.raw
+    );
+    if (!body) return c.json({ error: "Invalid JSON body" }, 400);
+
+    const { fileId, force, questionCount } = body;
+    const numericQuestionCount =
+      typeof questionCount === "number"
+        ? questionCount
+        : typeof questionCount === "string" && Number.isFinite(Number(questionCount))
+          ? Number(questionCount)
+          : undefined;
     if (!fileId || typeof fileId !== "string") {
-      return res.status(400).json({ error: "fileId is required" });
+      return c.json({ error: "fileId is required" }, 400);
     }
 
     try {
-      const record = await service.processFile({ fileId, force: !!force, questionCount });
-      res.json(record);
+      const record = await service.processFile({
+        fileId,
+        force: !!force,
+        questionCount: numericQuestionCount
+      });
+      return c.json(record);
     } catch (error) {
       logger.error("process failed", { fileId, error });
-      res.status(500).json({ error: "process failed", details: String(error) });
+      return c.json({ error: "process failed", details: String(error) }, 500);
     }
   });
 
-  app.post("/manual", async (req, res) => {
-    const { driveUrl, force, questionCount } = req.body ?? {};
+  app.post("/manual", async (c) => {
+    const body = await readJsonBody<{ driveUrl?: unknown; force?: unknown; questionCount?: unknown }>(
+      c.req.raw
+    );
+    if (!body) return c.json({ error: "Invalid JSON body" }, 400);
+
+    const { driveUrl, force, questionCount } = body;
+    const numericQuestionCount =
+      typeof questionCount === "number"
+        ? questionCount
+        : typeof questionCount === "string" && Number.isFinite(Number(questionCount))
+          ? Number(questionCount)
+          : undefined;
     if (!driveUrl || typeof driveUrl !== "string") {
-      return res.status(400).json({ error: "driveUrl is required" });
+      return c.json({ error: "driveUrl is required" }, 400);
     }
     const fileId = extractFileIdFromUrl(driveUrl);
     if (!fileId) {
-      return res.status(400).json({ error: "driveUrl is invalid or missing file id" });
+      return c.json({ error: "driveUrl is invalid or missing file id" }, 400);
     }
 
     try {
-      const record = await service.processFile({ fileId, force: !!force, questionCount });
-      res.json(record);
+      const record = await service.processFile({
+        fileId,
+        force: !!force,
+        questionCount: numericQuestionCount
+      });
+      return c.json(record);
     } catch (error) {
       logger.error("manual processing failed", { fileId, error });
-      res.status(500).json({ error: "manual processing failed", details: String(error) });
+      return c.json({ error: "manual processing failed", details: String(error) }, 500);
     }
   });
 
-  app.get("/files/:fileId", async (req, res) => {
-    const { fileId } = req.params;
+  app.get("/files/:fileId", async (c) => {
+    const { fileId } = c.req.param();
     const record = await service.getStatus(fileId);
-    if (!record) return res.status(404).json({ error: "not found" });
-    res.json(record);
+    if (!record) return c.json({ error: "not found" }, 404);
+    return c.json(record);
   });
 
-  app.get("/", (_req, res) => {
-    res.type("html").send(`
+  app.get("/", (c) => {
+    return c.html(`
 <!doctype html>
 <html lang="en">
   <head>
@@ -128,9 +166,15 @@ async function bootstrap() {
   });
 
   const port = config.port;
-  app.listen(port, () => {
-    logger.info("server_started", { port });
-  });
+  serve(
+    {
+      fetch: app.fetch,
+      port
+    },
+    () => {
+      logger.info("server_started", { port });
+    }
+  );
 }
 
 bootstrap().catch((error) => {

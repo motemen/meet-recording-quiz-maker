@@ -66,9 +66,12 @@ export class FormsClient {
       });
     }
 
+    const formData = createRes.data as forms_v1.Schema$Form & { formUri?: string };
+    const formUrl = formData.responderUri ?? formData.formUri ?? "";
+
     return {
       formId,
-      formUrl: createRes.data.responderUri ?? createRes.data.formUri ?? ""
+      formUrl
     };
   }
 }

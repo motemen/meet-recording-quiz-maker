@@ -11,6 +11,8 @@ export interface DriveFileMetadata {
 
 export class DriveClient {
   private drive: drive_v3.Drive;
+  private getEtag = (file: drive_v3.Schema$File): string | undefined =>
+    (file as drive_v3.Schema$File & { etag?: string }).etag;
 
   constructor() {
     const auth = new google.auth.GoogleAuth({
@@ -34,7 +36,7 @@ export class DriveClient {
         mimeType: file.mimeType ?? undefined,
         modifiedTime: file.modifiedTime ?? undefined,
         properties: file.properties ?? undefined,
-        etag: file.etag ?? undefined
+        etag: this.getEtag(file)
       })) ?? []
     );
   }
@@ -49,13 +51,15 @@ export class DriveClient {
       throw new Error("Drive file not found");
     }
 
+    const etag = this.getEtag(res.data);
+
     return {
       id: res.data.id,
       name: res.data.name ?? undefined,
       mimeType: res.data.mimeType ?? undefined,
       modifiedTime: res.data.modifiedTime ?? undefined,
       properties: res.data.properties ?? undefined,
-      etag: res.data.etag ?? undefined
+      etag: etag ?? undefined
     };
   }
 
