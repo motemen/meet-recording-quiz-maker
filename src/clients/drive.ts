@@ -1,30 +1,46 @@
 import { google, drive_v3 } from "googleapis";
+import { logger } from "../logger";
 
 export interface DriveFileMetadata {
   id: string;
   name?: string;
   mimeType?: string;
   modifiedTime?: string;
-  etag?: string;
   properties?: Record<string, string>;
 }
 
 export class DriveClient {
   private drive: drive_v3.Drive;
-  private getEtag = (file: drive_v3.Schema$File): string | undefined =>
-    (file as drive_v3.Schema$File & { etag?: string }).etag;
 
   constructor() {
     const auth = new google.auth.GoogleAuth({
       scopes: ["https://www.googleapis.com/auth/drive.readonly"]
     });
+    void this.logCaller(auth);
     this.drive = google.drive({ version: "v3", auth });
+  }
+
+  private async logCaller(auth: google.auth.GoogleAuth): Promise<void> {
+    try {
+      const client = await auth.getClient();
+      const token = await client.getAccessToken();
+      const tokenValue = typeof token === "string" ? token : token?.token ?? undefined;
+      if (!tokenValue) {
+        logger.warn("drive_auth_no_token");
+        return;
+      }
+      const oauth2 = google.oauth2({ version: "v2", auth });
+      const info = await oauth2.tokeninfo({ access_token: tokenValue });
+      logger.info("drive_auth_caller", { email: info.data.email, scopes: info.data.scope });
+    } catch (error) {
+      logger.warn("drive_auth_inspect_failed", { error });
+    }
   }
 
   async listFolderFiles(folderId: string, pageSize = 50): Promise<DriveFileMetadata[]> {
     const res = await this.drive.files.list({
       q: `'${folderId}' in parents and trashed = false`,
-      fields: "files(id, name, mimeType, modifiedTime, properties, etag)",
+      fields: "files(id, name, mimeType, modifiedTime, properties)",
       orderBy: "modifiedTime desc",
       pageSize
     });
@@ -35,8 +51,7 @@ export class DriveClient {
         name: file.name ?? undefined,
         mimeType: file.mimeType ?? undefined,
         modifiedTime: file.modifiedTime ?? undefined,
-        properties: file.properties ?? undefined,
-        etag: this.getEtag(file)
+        properties: file.properties ?? undefined
       })) ?? []
     );
   }
@@ -44,22 +59,19 @@ export class DriveClient {
   async getFileMetadata(fileId: string): Promise<DriveFileMetadata> {
     const res = await this.drive.files.get({
       fileId,
-      fields: "id, name, mimeType, modifiedTime, properties, etag"
+      fields: "id, name, mimeType, modifiedTime, properties"
     });
 
     if (!res.data.id) {
       throw new Error("Drive file not found");
     }
 
-    const etag = this.getEtag(res.data);
-
     return {
       id: res.data.id,
       name: res.data.name ?? undefined,
       mimeType: res.data.mimeType ?? undefined,
       modifiedTime: res.data.modifiedTime ?? undefined,
-      properties: res.data.properties ?? undefined,
-      etag: etag ?? undefined
+      properties: res.data.properties ?? undefined
     };
   }
 

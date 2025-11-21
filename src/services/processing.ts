@@ -42,9 +42,6 @@ export class ProcessingService {
         const unchanged =
           existing &&
           existing.status === "succeeded" &&
-          existing.driveEtag &&
-          file.etag &&
-          existing.driveEtag === file.etag &&
           !this.hasMetadataChanged(existing, file);
 
         if (unchanged) {
@@ -82,7 +79,6 @@ export class ProcessingService {
     await this.repo.setStatus(fileId, "processing", {
       folderId: this.config.googleDriveFolderId,
       title,
-      driveEtag: meta.etag,
       modifiedTime: meta.modifiedTime,
       questionCount
     });
@@ -99,7 +95,6 @@ export class ProcessingService {
     await this.repo.setStatus(fileId, "succeeded", {
       folderId: this.config.googleDriveFolderId,
       title,
-      driveEtag: meta.etag,
       modifiedTime: meta.modifiedTime,
       formId: form.formId,
       formUrl: form.formUrl,

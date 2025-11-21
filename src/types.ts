@@ -5,7 +5,6 @@ export interface MeetingFile {
   folderId: string;
   title?: string;
   status: ProcessingStatus;
-  driveEtag?: string;
   modifiedTime?: string;
   formId?: string;
   formUrl?: string;

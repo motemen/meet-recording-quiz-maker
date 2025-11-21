@@ -4,8 +4,8 @@ const configSchema = z.object({
   port: z.coerce.number().default(8080),
   googleDriveFolderId: z.string().min(1, "GOOGLE_DRIVE_FOLDER_ID is required"),
   googleAllowedDomain: z.string().optional(),
-  geminiModel: z.string().default("gemini-1.5-pro"),
-  firestoreCollection: z.string().default("meetingFiles"),
+  geminiModel: z.string().default("gemini-2.5-flash"),
+  firestoreCollection: z.string().min(1, "FIRESTORE_COLLECTION is required"),
   gcloudProject: z.string().optional()
 });
 

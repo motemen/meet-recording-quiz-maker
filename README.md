@@ -8,16 +8,16 @@ Cloud Run service that turns Google Meet recordings (Docs transcripts in a Drive
 - Drive client: lists `GOOGLE_DRIVE_FOLDER_ID`, fetches metadata, exports Docs to text.
 - Gemini client: generates quiz JSON from transcript.
 - Forms client: creates a quiz-form (radio MCQ) and returns `formId`/`formUrl`.
-- Firestore: collection (default `meetingFiles`) stores `fileId`, `status`, `driveEtag`, `modifiedTime`, `title`, `formId`, `formUrl`, `geminiSummary`, `questionCount`, timestamps, and `error`.
+- Firestore: collection stores `fileId`, `status`, `modifiedTime`, `title`, `formId`, `formUrl`, `geminiSummary`, `questionCount`, timestamps, and `error`.
 
 ## Environment
 
 Required env vars:
 
 - `GOOGLE_DRIVE_FOLDER_ID`: target Drive folder to scan.
-- `GEMINI_MODEL`: Gemini model name (default: `gemini-1.5-pro`).
+- `GEMINI_MODEL`: Gemini model name (default: `gemini-2.5-flash`).
 - `GEMINI_API_KEY`: API key for Gemini (or set up auth for Vertex if preferred).
-- `FIRESTORE_COLLECTION`: Firestore collection name (default: `meetingFiles`).
+- `FIRESTORE_COLLECTION`: Firestore collection name.
 - `GOOGLE_ALLOWED_DOMAIN`: optional domain check for owners.
 - `PORT`: server port (default: `8080`).
 
@@ -41,6 +41,8 @@ Permissions (service account on Cloud Run):
 pnpm install
 pnpm run dev
 ```
+
+Create a `.env` (see `.env.example`) to supply secrets/IDs; they are loaded via `dotenv`.
 
 Deploy to Cloud Run with a service account that has Drive + Forms + Firestore scopes, and set up Cloud Scheduler to hit `/tasks/scan` periodically.
 
