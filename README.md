@@ -2,6 +2,14 @@
 
 Cloud Run service that turns Google Meet recordings (Docs transcripts in a Drive folder) into Google Forms quizzes using Gemini, with state tracked in Firestore.
 
+## Architecture
+
+- Cloud Run service (Express) with routes for scanning (`/tasks/scan`), per-file processing (`/tasks/process`), manual submission (`/manual`), status lookup (`/files/:fileId`), and a minimal UI (`/`).
+- Drive client: lists `GOOGLE_DRIVE_FOLDER_ID`, fetches metadata, exports Docs to text.
+- Gemini client: generates quiz JSON from transcript.
+- Forms client: creates a quiz-form (radio MCQ) and returns `formId`/`formUrl`.
+- Firestore: collection (default `meetingFiles`) stores `fileId`, `status`, `driveEtag`, `modifiedTime`, `title`, `formId`, `formUrl`, `geminiSummary`, `questionCount`, timestamps, and `error`.
+
 ## Environment
 
 Required env vars:
@@ -35,3 +43,10 @@ pnpm run dev
 ```
 
 Deploy to Cloud Run with a service account that has Drive + Forms + Firestore scopes, and set up Cloud Scheduler to hit `/tasks/scan` periodically.
+
+## Next steps
+
+- Run with real creds (`pnpm run dev`) and test `/tasks/process` on a sample Doc.
+- Configure Cloud Scheduler → `/tasks/scan` on Cloud Run.
+- Decide UI auth (basic auth or IAP) and whether to write Drive file properties (processed/formUrl).
+- Add retries/backoff and monitoring once basic flow is verified.
