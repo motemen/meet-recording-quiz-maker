@@ -30,7 +30,9 @@ export class ProcessingService {
   }
 
   async scanFolder(): Promise<{ processed: number; skipped: number; errors: number }> {
+    logger.info("scan_folder_start", { folderId: this.config.googleDriveFolderId });
     const files = await this.drive.listFolderFiles(this.config.googleDriveFolderId);
+    logger.info("scan_folder_listed", { fileCount: files.length });
 
     let processed = 0;
     let skipped = 0;
@@ -45,6 +47,7 @@ export class ProcessingService {
           !this.hasMetadataChanged(existing, file);
 
         if (unchanged) {
+          logger.debug("scan_file_skipped_unchanged", { fileId: file.id });
           skipped += 1;
           continue;
         }
@@ -57,7 +60,9 @@ export class ProcessingService {
       }
     }
 
-    return { processed, skipped, errors };
+    const summary = { processed, skipped, errors };
+    logger.info("scan_folder_complete", summary);
+    return summary;
   }
 
   async processFile(input: {
@@ -67,9 +72,16 @@ export class ProcessingService {
     questionCount?: number;
   }): Promise<MeetingFile> {
     const { fileId, force = false, metadata, questionCount = 5 } = input;
+    logger.info("process_file_start", {
+      fileId,
+      force,
+      requestedQuestionCount: questionCount,
+      hasMetadata: Boolean(metadata)
+    });
     const existing = await this.repo.get(fileId);
 
     if (existing && existing.status === "succeeded" && !force) {
+      logger.info("process_file_short_circuit_existing", { fileId });
       return existing;
     }
 
@@ -84,14 +96,29 @@ export class ProcessingService {
     });
 
     const transcript = await this.drive.exportDocumentText(fileId);
+    logger.info("process_file_transcript_fetched", {
+      fileId,
+      transcriptLength: transcript.length
+    });
     const quizPayload = await this.gemini.generateQuiz({
       title,
       transcript,
       questionCount,
       additionalPrompt: this.config.quizAdditionalPrompt
     });
+    logger.info("process_file_quiz_generated", {
+      fileId,
+      questionCount: quizPayload.questions.length,
+      hasSummary: Boolean(quizPayload.summary),
+      usedAdditionalPrompt: Boolean(this.config.quizAdditionalPrompt)
+    });
 
     const form = await this.forms.createQuizForm(quizPayload);
+    logger.info("process_file_form_created", {
+      fileId,
+      formId: form.formId,
+      formUrl: form.formUrl
+    });
 
     await this.repo.setStatus(fileId, "succeeded", {
       folderId: this.config.googleDriveFolderId,
@@ -107,6 +134,7 @@ export class ProcessingService {
     if (!record) {
       throw new Error("Failed to read record after processing");
     }
+    logger.info("process_file_complete", { fileId, status: record.status });
     return record;
   }
 

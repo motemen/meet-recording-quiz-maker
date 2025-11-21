@@ -1,7 +1,9 @@
 export type LogFields = Record<string, unknown>;
 
 function log(level: "info" | "error" | "warn" | "debug", message: string, fields?: LogFields) {
-  const payload = fields ? { ...normalize(fields), level, message } : { level, message };
+  const payload = fields
+    ? { ...normalize(fields), level, message, timestamp: new Date().toISOString() }
+    : { level, message, timestamp: new Date().toISOString() };
   // Console logging is enough for Cloud Run and can be ingested by Cloud Logging.
   // Keep JSON flat for easier querying.
   console.log(JSON.stringify(payload));

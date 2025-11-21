@@ -39,6 +39,7 @@ async function bootstrap() {
   });
 
   app.post("/tasks/scan", async (c) => {
+    logger.info("http_scan_requested");
     try {
       const result = await service.scanFolder();
       return c.json(result);
@@ -64,6 +65,12 @@ async function bootstrap() {
     if (!fileId || typeof fileId !== "string") {
       return c.json({ error: "fileId is required" }, 400);
     }
+
+    logger.info("http_process_requested", {
+      fileId,
+      force: !!force,
+      questionCount: numericQuestionCount
+    });
 
     try {
       const record = await service.processFile({
@@ -98,6 +105,13 @@ async function bootstrap() {
     if (!fileId) {
       return c.json({ error: "driveUrl is invalid or missing file id" }, 400);
     }
+
+    logger.info("http_manual_requested", {
+      driveUrl,
+      fileId,
+      force: !!force,
+      questionCount: numericQuestionCount
+    });
 
     try {
       const record = await service.processFile({
