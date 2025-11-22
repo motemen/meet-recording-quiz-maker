@@ -3,6 +3,7 @@ import { z } from "zod";
 const configSchema = z.object({
   port: z.coerce.number().default(8080),
   googleDriveFolderId: z.string().min(1, "GOOGLE_DRIVE_FOLDER_ID is required"),
+  googleFormsOutputFolderId: z.string().optional(),
   googleAllowedDomain: z.string().optional(),
   geminiModel: z.string().default("gemini-2.5-flash"),
   quizAdditionalPrompt: z.string().optional(),
@@ -16,6 +17,7 @@ export function loadConfig(env = process.env): AppConfig {
   const parsed = configSchema.safeParse({
     port: env.PORT,
     googleDriveFolderId: env.GOOGLE_DRIVE_FOLDER_ID,
+    googleFormsOutputFolderId: env.GOOGLE_FORMS_OUTPUT_FOLDER_ID,
     googleAllowedDomain: env.GOOGLE_ALLOWED_DOMAIN,
     geminiModel: env.GEMINI_MODEL,
     quizAdditionalPrompt: env.QUIZ_ADDITIONAL_PROMPT,

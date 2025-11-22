@@ -1,15 +1,24 @@
 import { type forms_v1, google } from "googleapis";
+import { logger } from "../logger";
 import type { QuizPayload } from "../types";
+import type { DriveClient } from "./drive";
 
 export interface CreateFormResult {
   formId: string;
   formUrl: string;
 }
 
+export interface FormsClientOptions {
+  driveClient?: DriveClient;
+  outputFolderId?: string;
+}
+
 export class FormsClient {
   private forms: forms_v1.Forms;
+  private driveClient?: DriveClient;
+  private outputFolderId?: string;
 
-  constructor() {
+  constructor(options: FormsClientOptions = {}) {
     const auth = new google.auth.GoogleAuth({
       scopes: [
         "https://www.googleapis.com/auth/forms.body",
@@ -17,6 +26,8 @@ export class FormsClient {
       ],
     });
     this.forms = google.forms({ version: "v1", auth });
+    this.driveClient = options.driveClient;
+    this.outputFolderId = options.outputFolderId;
   }
 
   async createQuizForm(quiz: QuizPayload): Promise<CreateFormResult> {
@@ -95,6 +106,22 @@ export class FormsClient {
 
     const formData = createRes.data as forms_v1.Schema$Form & { formUri?: string };
     const formUrl = formData.responderUri ?? formData.formUri ?? "";
+
+    if (this.driveClient && this.outputFolderId) {
+      try {
+        await this.driveClient.moveFileToFolder(formId, this.outputFolderId);
+        logger.info("form_moved_to_output_folder", {
+          formId,
+          outputFolderId: this.outputFolderId,
+        });
+      } catch (error) {
+        logger.error("Failed to move form to output folder", {
+          formId,
+          outputFolderId: this.outputFolderId,
+          error,
+        });
+      }
+    }
 
     return {
       formId,

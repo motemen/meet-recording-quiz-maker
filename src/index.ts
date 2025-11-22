@@ -24,7 +24,10 @@ async function bootstrap() {
 
   const repo = new MeetingFilesRepository({ collectionName: config.firestoreCollection });
   const driveClient = new DriveClient();
-  const formsClient = new FormsClient();
+  const formsClient = new FormsClient({
+    driveClient,
+    outputFolderId: config.googleFormsOutputFolderId,
+  });
   const geminiClient = new GeminiClient({ modelName: config.geminiModel });
   const service = new ProcessingService({
     config,

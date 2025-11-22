@@ -14,7 +14,10 @@ export class DriveClient {
 
   constructor() {
     const auth = new google.auth.GoogleAuth({
-      scopes: ["https://www.googleapis.com/auth/drive.readonly"],
+      scopes: [
+        "https://www.googleapis.com/auth/drive.readonly",
+        "https://www.googleapis.com/auth/drive.file",
+      ],
     });
     void this.logCaller(auth);
     this.drive = google.drive({ version: "v3", auth });
@@ -98,6 +101,22 @@ export class DriveClient {
     await this.drive.files.update({
       fileId,
       requestBody: { properties },
+    });
+  }
+
+  async moveFileToFolder(fileId: string, folderId: string): Promise<void> {
+    const file = await this.drive.files.get({
+      fileId,
+      fields: "parents",
+    });
+
+    const previousParents = file.data.parents?.join(",") ?? "";
+
+    await this.drive.files.update({
+      fileId,
+      addParents: folderId,
+      removeParents: previousParents,
+      fields: "id, parents",
     });
   }
 }
