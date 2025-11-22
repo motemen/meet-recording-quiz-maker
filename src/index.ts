@@ -24,7 +24,10 @@ async function bootstrap() {
 
   const repo = new MeetingFilesRepository({ collectionName: config.firestoreCollection });
   const driveClient = new DriveClient();
-  const formsClient = new FormsClient();
+  const formsClient = new FormsClient({
+    driveClient,
+    outputFolderId: config.googleDriveOutputFolderId,
+  });
   const geminiClient = new GeminiClient({ modelName: config.geminiModel });
   const service = new ProcessingService({
     config,
@@ -42,7 +45,10 @@ async function bootstrap() {
     logger.info("http_scan_requested");
     if (!config.googleDriveFolderId) {
       return c.json(
-        { error: "GOOGLE_DRIVE_FOLDER_ID is not configured. Scan functionality requires a folder ID." },
+        {
+          error:
+            "GOOGLE_DRIVE_FOLDER_ID is not configured. Scan functionality requires a folder ID.",
+        },
         400,
       );
     }

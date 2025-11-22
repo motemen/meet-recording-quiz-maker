@@ -1,15 +1,24 @@
 import { type forms_v1, google } from "googleapis";
+import { logger } from "../logger";
 import type { QuizPayload } from "../types";
+import type { DriveClient } from "./drive";
 
 export interface CreateFormResult {
   formId: string;
   formUrl: string;
 }
 
+export interface FormsClientOptions {
+  driveClient?: DriveClient;
+  outputFolderId?: string;
+}
+
 export class FormsClient {
   private forms: forms_v1.Forms;
+  private driveClient: DriveClient | null;
+  private outputFolderId?: string;
 
-  constructor() {
+  constructor(options: FormsClientOptions = {}) {
     const auth = new google.auth.GoogleAuth({
       scopes: [
         "https://www.googleapis.com/auth/forms.body",
@@ -17,6 +26,15 @@ export class FormsClient {
       ],
     });
     this.forms = google.forms({ version: "v1", auth });
+    this.driveClient = options.driveClient ?? null;
+    this.outputFolderId = options.outputFolderId;
+
+    // Validate that driveClient is provided when outputFolderId is specified
+    if (this.outputFolderId && !this.driveClient) {
+      throw new Error(
+        "driveClient is required when outputFolderId is specified. Cannot move forms without DriveClient.",
+      );
+    }
   }
 
   async createQuizForm(quiz: QuizPayload): Promise<CreateFormResult> {
@@ -95,6 +113,24 @@ export class FormsClient {
 
     const formData = createRes.data as forms_v1.Schema$Form & { formUri?: string };
     const formUrl = formData.responderUri ?? formData.formUri ?? "";
+
+    // Move form to output folder if configured
+    if (this.outputFolderId && this.driveClient) {
+      try {
+        await this.driveClient.moveFileToFolder(formId, this.outputFolderId);
+        logger.info("form_moved_to_output_folder", {
+          formId,
+          outputFolderId: this.outputFolderId,
+        });
+      } catch (error) {
+        logger.error("failed_to_move_form", {
+          formId,
+          outputFolderId: this.outputFolderId,
+          error,
+        });
+        // Don't fail the entire operation if moving fails
+      }
+    }
 
     return {
       formId,
