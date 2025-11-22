@@ -1,32 +1,33 @@
 # Deployment Guide
 
-本ガイドでは、Meet Recording Quiz Maker を Google Cloud Run にデプロイする手順を説明します。
+This guide explains how to deploy the Meet Recording Quiz Maker to Google Cloud Run.
 
-## 前提条件
+## Prerequisites
 
-- Google Cloud プロジェクトが作成済みであること
-- `gcloud` CLI がインストールされていること
-- 必要な Google APIs が有効化されていること:
+- Google Cloud project created
+- `gcloud` CLI installed
+- Required Google APIs enabled:
   - Cloud Run API
-  - Cloud Scheduler API (定期実行する場合)
+  - Cloud Scheduler API (for scheduled execution)
   - Google Drive API
   - Google Forms API
   - Cloud Firestore API
+  - Secret Manager API
 
-## 1. 初期設定
+## 1. Initial Setup
 
-### プロジェクトとリージョンの設定
+### Configure Project and Region
 
 ```bash
-# プロジェクトIDを設定
+# Set project ID
 export PROJECT_ID="your-project-id"
-export REGION="asia-northeast1"  # 東京リージョン
+export REGION="asia-northeast1"  # Tokyo region
 
-# gcloud の設定
+# Configure gcloud
 gcloud config set project $PROJECT_ID
 ```
 
-### 必要な API の有効化
+### Enable Required APIs
 
 ```bash
 gcloud services enable \
@@ -38,112 +39,112 @@ gcloud services enable \
   secretmanager.googleapis.com
 ```
 
-## 2. サービスアカウントの作成
+## 2. Create Service Account
 
-Cloud Run で使用するサービスアカウントを作成し、必要な権限を付与します。
+Create a service account for Cloud Run and grant necessary permissions.
 
 ```bash
-# サービスアカウント名
+# Service account name
 export SERVICE_ACCOUNT_NAME="meet-quiz-maker"
 export SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
 
-# サービスアカウントの作成
+# Create service account
 gcloud iam service-accounts create $SERVICE_ACCOUNT_NAME \
   --display-name="Meet Recording Quiz Maker Service Account"
 
-# Firestore のデータベース使用権限を付与
+# Grant Firestore database user permission
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
   --role="roles/datastore.user"
 
-# Secret Manager のシークレットアクセス権限を付与（Secret Manager を使用する場合）
+# Grant Secret Manager secret accessor permission (if using Secret Manager)
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
   --role="roles/secretmanager.secretAccessor"
 ```
 
-**注意**: Google Drive と Forms の権限は、サービスアカウントに対してドメイン委任（Domain-wide Delegation）を設定するか、個別の Drive フォルダ/Forms に対して共有設定で権限を付与する必要があります。
+**Note**: For Google Drive and Forms permissions, you need to either configure Domain-wide Delegation for the service account, or share individual Drive folders/Forms with the service account.
 
-### ドメイン委任を使用する場合
+### Using Domain-wide Delegation
 
-1. [Google Admin Console](https://admin.google.com/) にアクセス
-2. **セキュリティ > API の制御 > ドメイン全体の委任** を開く
-3. サービスアカウントのクライアント ID を追加し、以下のスコープを設定:
+1. Access [Google Admin Console](https://admin.google.com/)
+2. Navigate to **Security > API controls > Domain-wide delegation**
+3. Add the service account's client ID and configure these scopes:
    ```
    https://www.googleapis.com/auth/drive.readonly
    https://www.googleapis.com/auth/drive.file
    https://www.googleapis.com/auth/forms.body
    ```
 
-### フォルダ共有を使用する場合
+### Using Folder Sharing
 
-対象の Drive フォルダをサービスアカウント（`${SERVICE_ACCOUNT_EMAIL}`）と共有し、閲覧権限を付与します。
+Share the target Drive folder with the service account (`${SERVICE_ACCOUNT_EMAIL}`) and grant viewer permissions.
 
-## 3. Firestore の初期化
+## 3. Initialize Firestore
 
-Firestore データベースが未作成の場合、以下のコマンドで作成します:
+If Firestore database doesn't exist, create it:
 
 ```bash
 gcloud firestore databases create --location=$REGION
 ```
 
-## 4. シークレットの管理（推奨）
+## 4. Secret Management (Recommended)
 
-API キーなどの機密情報は、環境変数として直接設定するのではなく、**Secret Manager** を使用して安全に管理することを推奨します。
+For sensitive information like API keys, it's recommended to use **Secret Manager** instead of setting them directly as environment variables.
 
-### Secret Manager でシークレットを作成
+### Create Secrets in Secret Manager
 
 ```bash
-# Gemini API キーをシークレットとして作成
+# Create Gemini API key as a secret
 echo -n "your-actual-gemini-api-key" | gcloud secrets create gemini-api-key \
   --data-file=- \
   --replication-policy="automatic"
 
-# 他のシークレットも必要に応じて作成
+# Create other secrets as needed
 # echo -n "your-value" | gcloud secrets create secret-name --data-file=- --replication-policy="automatic"
 ```
 
-### シークレットの確認
+### Verify Secrets
 
 ```bash
-# シークレット一覧を表示
+# List secrets
 gcloud secrets list
 
-# シークレットの値を確認（テスト用、本番環境では実行しない）
+# View secret value (for testing only, don't run in production)
 gcloud secrets versions access latest --secret="gemini-api-key"
 ```
 
-### シークレットの更新
+### Update Secrets
 
 ```bash
-# 既存のシークレットに新しいバージョンを追加
+# Add new version to existing secret
 echo -n "new-api-key-value" | gcloud secrets versions add gemini-api-key --data-file=-
 ```
 
-**注意**: Secret Manager を使用する場合、サービスアカウントに `roles/secretmanager.secretAccessor` ロールが必要です（セクション 2 で設定済み）。
+**Note**: When using Secret Manager, the service account needs the `roles/secretmanager.secretAccessor` role (already configured in section 2).
 
-## 5. Cloud Run へのデプロイ
+## 5. Deploy to Cloud Run
 
-Cloud Run は pnpm に対応しているため、Dockerfile は不要です。ソースコードから直接デプロイできます。
+Cloud Run supports pnpm natively, so no Dockerfile is required. You can deploy directly from source.
 
-### 環境変数の設定
+### Environment Variables Setup
 
-デプロイ時に環境変数を設定します。まず、必要な値を環境変数として準備します:
+Prepare environment variables for deployment:
 
 ```bash
-# 必須の環境変数
+# Required environment variables
 export FIRESTORE_COLLECTION="meetingFiles"
 export GOOGLE_GENERATIVE_AI_API_KEY="your-gemini-api-key"
 
-# オプションの環境変数
-export GOOGLE_DRIVE_FOLDER_ID="your-drive-folder-id"  # /tasks/scan を使う場合は必須
-export GOOGLE_DRIVE_OUTPUT_FOLDER_ID="your-output-folder-id"  # 作成したフォームの保存先
+# Optional environment variables
+export GOOGLE_DRIVE_FOLDER_ID="your-drive-folder-id"  # Required if using /tasks/scan
+export GOOGLE_DRIVE_OUTPUT_FOLDER_ID="your-output-folder-id"  # Where created forms will be saved
 export GEMINI_MODEL="gemini-2.5-flash"
-export QUIZ_ADDITIONAL_PROMPT="Use Japanese"  # 必要に応じて
-export GOOGLE_ALLOWED_DOMAIN="yourdomain.com"  # ドメインチェックが必要な場合
+export QUIZ_ADDITIONAL_PROMPT="Use Japanese"  # Optional
+export GOOGLE_ALLOWED_DOMAIN="yourdomain.com"  # Optional domain validation
 ```
 
-### デプロイコマンド
+### Deploy Command
 
 ```bash
 gcloud run deploy meet-quiz-maker \
@@ -166,14 +167,14 @@ gcloud run deploy meet-quiz-maker \
   --cpu=1
 ```
 
-**注意**:
-- `--allow-unauthenticated` は認証なしでアクセスを許可します。本番環境では、`--no-allow-unauthenticated` に変更し、Cloud IAP や独自の認証を設定することを推奨します。
-- `--timeout=300` は 5 分のタイムアウトを設定（Gemini API の処理時間を考慮）
-- 環境変数は `--set-env-vars` で個別に設定するか、`--env-vars-file` でファイルから読み込むことも可能です
+**Notes**:
+- `--allow-unauthenticated` allows unauthenticated access. For production, change to `--no-allow-unauthenticated` and configure Cloud IAP or custom authentication.
+- `--timeout=300` sets 5-minute timeout (considering Gemini API processing time)
+- Environment variables can be set individually with `--set-env-vars` or loaded from a file with `--env-vars-file`
 
-### 環境変数をファイルから設定する場合
+### Using Environment Variables File
 
-`env.yaml` ファイルを作成:
+Create `env.yaml` file:
 
 ```yaml
 FIRESTORE_COLLECTION: "meetingFiles"
@@ -186,7 +187,7 @@ GOOGLE_ALLOWED_DOMAIN: "yourdomain.com"
 PORT: "8080"
 ```
 
-デプロイコマンドを簡略化:
+Simplified deploy command:
 
 ```bash
 gcloud run deploy meet-quiz-maker \
@@ -202,12 +203,12 @@ gcloud run deploy meet-quiz-maker \
   --cpu=1
 ```
 
-### Secret Manager を使用する場合（推奨）
+### Using Secret Manager (Recommended)
 
-機密情報を Secret Manager で管理する場合、`--set-secrets` オプションを使用します。
+When managing sensitive information with Secret Manager, use the `--set-secrets` option.
 
 ```bash
-# Gemini API キーを Secret Manager から読み込む
+# Load Gemini API key from Secret Manager
 gcloud run deploy meet-quiz-maker \
   --source . \
   --region=$REGION \
@@ -228,48 +229,48 @@ gcloud run deploy meet-quiz-maker \
   --cpu=1
 ```
 
-`--set-secrets` の形式:
-- `環境変数名=シークレット名:バージョン`
-- バージョンは `latest` で最新版を参照、または `1`, `2` などの特定バージョンを指定可能
+`--set-secrets` format:
+- `ENVIRONMENT_VARIABLE_NAME=secret-name:version`
+- Version can be `latest` for the most recent version, or specific versions like `1`, `2`, etc.
 
-**メリット**:
-- API キーがコマンド履歴やログに残らない
-- シークレットのローテーションが容易
-- バージョン管理により、以前の値にロールバック可能
-- IAM でアクセス制御が可能
+**Benefits**:
+- API keys don't appear in command history or logs
+- Easy secret rotation
+- Version control allows rollback to previous values
+- Access control via IAM
 
-## 6. デプロイの確認
+## 6. Verify Deployment
 
-デプロイが完了すると、サービスの URL が表示されます:
+After deployment completes, the service URL will be displayed:
 
 ```
 Service [meet-quiz-maker] revision [meet-quiz-maker-00001-xxx] has been deployed and is serving 100 percent of traffic.
 Service URL: https://meet-quiz-maker-xxxxxxxxxxxx-an.a.run.app
 ```
 
-動作確認:
+Test the deployment:
 
 ```bash
 export SERVICE_URL=$(gcloud run services describe meet-quiz-maker --region=$REGION --format='value(status.url)')
 
-# ヘルスチェック（UI にアクセス）
+# Health check (access UI)
 curl $SERVICE_URL
 
-# 手動処理のテスト
+# Test manual processing
 curl -X POST $SERVICE_URL/manual \
   -H "Content-Type: application/json" \
   -d '{"driveUrl": "https://docs.google.com/document/d/YOUR_FILE_ID/edit"}'
 ```
 
-## 7. Cloud Scheduler の設定（定期実行）
+## 7. Configure Cloud Scheduler (Periodic Execution)
 
-`/tasks/scan` エンドポイントを定期的に実行するために Cloud Scheduler を設定します。
+Set up Cloud Scheduler to periodically execute the `/tasks/scan` endpoint.
 
 ```bash
-# App Engine アプリの作成（Cloud Scheduler の前提条件）
+# Create App Engine app (prerequisite for Cloud Scheduler)
 gcloud app create --region=$REGION 2>/dev/null || true
 
-# スケジューラジョブの作成（毎時実行の例）
+# Create scheduler job (hourly execution example)
 gcloud scheduler jobs create http meet-quiz-scan \
   --location=$REGION \
   --schedule="0 * * * *" \
@@ -279,57 +280,57 @@ gcloud scheduler jobs create http meet-quiz-scan \
   --oidc-token-audience=$SERVICE_URL
 ```
 
-スケジュール形式（cron 形式）:
-- `0 * * * *` - 毎時 0 分
-- `*/30 * * * *` - 30 分ごと
-- `0 9 * * *` - 毎日 9 時
+Schedule format (cron syntax):
+- `0 * * * *` - Every hour at 0 minutes
+- `*/30 * * * *` - Every 30 minutes
+- `0 9 * * *` - Daily at 9:00 AM
 
-ジョブの手動実行:
+Manual job execution:
 
 ```bash
 gcloud scheduler jobs run meet-quiz-scan --location=$REGION
 ```
 
-## 8. 認証の設定（推奨）
+## 8. Authentication Setup (Recommended)
 
-本番環境では、エンドポイントへのアクセスを制限することを推奨します。
+For production environments, it's recommended to restrict endpoint access.
 
-### Cloud IAP を使用する場合
+### Using Cloud IAP
 
 ```bash
-# Cloud Run サービスへの認証を必須にする
+# Require authentication for Cloud Run service
 gcloud run services update meet-quiz-maker \
   --region=$REGION \
   --no-allow-unauthenticated
 
-# IAP の設定（コンソールから実施）
+# Configure IAP (done via console)
 ```
 
-### Cloud Scheduler から認証付きでアクセスする場合
+### Authenticated Access from Cloud Scheduler
 
-上記の `--oidc-service-account-email` と `--oidc-token-audience` を使用することで、OIDC トークンによる認証が行われます。
+Using `--oidc-service-account-email` and `--oidc-token-audience` as shown above enables OIDC token-based authentication.
 
-## 9. ログとモニタリング
+## 9. Logs and Monitoring
 
-### ログの確認
+### View Logs
 
 ```bash
 gcloud run services logs read meet-quiz-maker --region=$REGION --limit=50
 ```
 
-### リアルタイムログ
+### Real-time Logs
 
 ```bash
 gcloud run services logs tail meet-quiz-maker --region=$REGION
 ```
 
-### Cloud Console でのモニタリング
+### Monitoring in Cloud Console
 
-[Cloud Run Console](https://console.cloud.google.com/run) でメトリクス、リクエスト数、エラー率などを確認できます。
+View metrics, request counts, error rates, and more in [Cloud Run Console](https://console.cloud.google.com/run).
 
-## 10. アップデート
+## 10. Updates
 
-コードを変更した後、同じデプロイコマンドを再実行するだけで新しいリビジョンがデプロイされます:
+After code changes, simply re-run the same deploy command to deploy a new revision:
 
 ```bash
 gcloud run deploy meet-quiz-maker \
@@ -337,7 +338,7 @@ gcloud run deploy meet-quiz-maker \
   --region=$REGION
 ```
 
-環境変数のみを更新する場合:
+To update only environment variables:
 
 ```bash
 gcloud run services update meet-quiz-maker \
@@ -345,36 +346,36 @@ gcloud run services update meet-quiz-maker \
   --set-env-vars="GEMINI_MODEL=gemini-2.0-flash-exp"
 ```
 
-## 11. トラブルシューティング
+## 11. Troubleshooting
 
-### デプロイが失敗する場合
+### Deployment Failures
 
-- ビルドログを確認: Cloud Build のログで pnpm install や build のエラーを確認
-- サービスアカウントの権限を確認
-- API が有効化されているか確認
+- Check build logs: Review Cloud Build logs for pnpm install or build errors
+- Verify service account permissions
+- Confirm APIs are enabled
 
-### 実行時エラー
+### Runtime Errors
 
-- Cloud Run のログを確認:
+- Check Cloud Run logs:
   ```bash
   gcloud run services logs read meet-quiz-maker --region=$REGION --limit=100
   ```
-- 環境変数が正しく設定されているか確認:
+- Verify environment variables are correctly set:
   ```bash
   gcloud run services describe meet-quiz-maker --region=$REGION
   ```
-- Firestore のコレクションが存在するか確認
+- Confirm Firestore collection exists
 
-### Drive/Forms の権限エラー
+### Drive/Forms Permission Errors
 
-- サービスアカウントにドメイン委任が設定されているか確認
-- または、Drive フォルダがサービスアカウントと共有されているか確認
-- スコープが正しく設定されているか確認
+- Verify service account has domain-wide delegation configured
+- Or verify Drive folder is shared with the service account
+- Confirm scopes are correctly configured
 
-## 参考リンク
+## Reference Links
 
 - [Cloud Run Documentation](https://cloud.google.com/run/docs)
 - [Cloud Scheduler Documentation](https://cloud.google.com/scheduler/docs)
 - [Secret Manager Documentation](https://cloud.google.com/secret-manager/docs)
-- [Cloud Run と Secret Manager の統合](https://cloud.google.com/run/docs/configuring/secrets)
+- [Cloud Run and Secret Manager Integration](https://cloud.google.com/run/docs/configuring/secrets)
 - [Service Account Domain-wide Delegation](https://developers.google.com/identity/protocols/oauth2/service-account#delegatingauthority)
