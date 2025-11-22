@@ -50,7 +50,9 @@ pnpm run dev
 
 Create a `.env` (see `.env.example`) to supply secrets/IDs; they are loaded via `dotenv`.
 
-Deploy to Cloud Run with a service account that has Drive + Forms + Firestore scopes, and set up Cloud Scheduler to hit `/tasks/scan` periodically.
+## Deployment
+
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on deploying to Google Cloud Run and setting up Cloud Scheduler.
 
 ## Next steps
 
