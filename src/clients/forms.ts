@@ -1,6 +1,7 @@
-import { type drive_v3, type forms_v1, google } from "googleapis";
+import { type forms_v1, google } from "googleapis";
 import { logger } from "../logger";
 import type { QuizPayload } from "../types";
+import type { DriveClient } from "./drive";
 
 export interface CreateFormResult {
   formId: string;
@@ -9,19 +10,18 @@ export interface CreateFormResult {
 
 export class FormsClient {
   private forms: forms_v1.Forms;
-  private drive: drive_v3.Drive;
+  private driveClient: DriveClient | null;
   private outputFolderId?: string;
 
-  constructor() {
+  constructor(driveClient?: DriveClient) {
     const auth = new google.auth.GoogleAuth({
       scopes: [
         "https://www.googleapis.com/auth/forms.body",
         "https://www.googleapis.com/auth/forms.responses.readonly",
-        "https://www.googleapis.com/auth/drive.file",
       ],
     });
     this.forms = google.forms({ version: "v1", auth });
-    this.drive = google.drive({ version: "v3", auth });
+    this.driveClient = driveClient ?? null;
     this.outputFolderId = process.env.GOOGLE_DRIVE_OUTPUT_FOLDER_ID;
   }
 
@@ -103,9 +103,9 @@ export class FormsClient {
     const formUrl = formData.responderUri ?? formData.formUri ?? "";
 
     // Move form to output folder if configured
-    if (this.outputFolderId) {
+    if (this.outputFolderId && this.driveClient) {
       try {
-        await this.moveFormToFolder(formId, this.outputFolderId);
+        await this.driveClient.moveFileToFolder(formId, this.outputFolderId);
         logger.info("form_moved_to_output_folder", {
           formId,
           outputFolderId: this.outputFolderId,
@@ -124,24 +124,5 @@ export class FormsClient {
       formId,
       formUrl,
     };
-  }
-
-  private async moveFormToFolder(formId: string, folderId: string): Promise<void> {
-    // Get current parents
-    const file = await this.drive.files.get({
-      fileId: formId,
-      fields: "parents",
-      supportsAllDrives: true,
-    });
-
-    const previousParents = file.data.parents?.join(",") || "";
-
-    // Move to new folder by removing from old parents and adding to new parent
-    await this.drive.files.update({
-      fileId: formId,
-      addParents: folderId,
-      removeParents: previousParents,
-      supportsAllDrives: true,
-    });
   }
 }
