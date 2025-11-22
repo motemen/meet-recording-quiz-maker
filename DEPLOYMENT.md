@@ -6,7 +6,6 @@ This guide provides step-by-step instructions to deploy the Meet Recording Quiz 
 
 - Google Cloud Project with billing enabled
 - gcloud CLI installed and authenticated (`gcloud auth login`)
-- Docker installed locally
 - Google Drive folder with meeting transcripts (optional, for automatic scanning)
 - Gemini API key
 
@@ -27,7 +26,7 @@ gcloud config set project $PROJECT_ID
 
 gcloud services enable \
   run.googleapis.com \
-  artifactregistry.googleapis.com \
+  cloudbuild.googleapis.com \
   cloudscheduler.googleapis.com \
   drive.googleapis.com \
   forms.googleapis.com \
@@ -79,30 +78,7 @@ If using Google Workspace, you can set up domain-wide delegation:
    - `https://www.googleapis.com/auth/drive.readonly`
    - `https://www.googleapis.com/auth/forms.body`
 
-## Step 4: Create Artifact Registry Repository
-
-```bash
-# Create repository for Docker images
-gcloud artifacts repositories create $SERVICE_NAME \
-  --repository-format=docker \
-  --location=$REGION \
-  --description="Meet Recording Quiz Maker container images"
-
-# Configure Docker authentication
-gcloud auth configure-docker ${REGION}-docker.pkg.dev
-```
-
-## Step 5: Build and Push Docker Image
-
-```bash
-# Build Docker image
-docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${SERVICE_NAME}/${SERVICE_NAME}:latest .
-
-# Push to Artifact Registry
-docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/${SERVICE_NAME}/${SERVICE_NAME}:latest
-```
-
-## Step 6: Deploy to Cloud Run
+## Step 4: Deploy to Cloud Run
 
 ### Prepare Environment Variables
 
@@ -120,10 +96,11 @@ PORT: "8080"
 
 ### Deploy Service
 
+Cloud Buildが自動的にビルドとデプロイを行います：
+
 ```bash
 gcloud run deploy $SERVICE_NAME \
-  --image=${REGION}-docker.pkg.dev/${PROJECT_ID}/${SERVICE_NAME}/${SERVICE_NAME}:latest \
-  --platform=managed \
+  --source=. \
   --region=$REGION \
   --service-account=$SERVICE_ACCOUNT \
   --env-vars-file=env.yaml \
@@ -133,6 +110,8 @@ gcloud run deploy $SERVICE_NAME \
   --timeout=300 \
   --max-instances=10
 ```
+
+初回は Cloud Build APIの有効化を求められるので、`y` を選択してください。
 
 **Note**: `--allow-unauthenticated` makes the service public. For production, consider:
 - Using `--no-allow-unauthenticated` and setting up Identity-Aware Proxy (IAP)
@@ -146,7 +125,7 @@ export SERVICE_URL=$(gcloud run services describe $SERVICE_NAME --region=$REGION
 echo "Service URL: $SERVICE_URL"
 ```
 
-## Step 7: Set Up Cloud Scheduler (Optional)
+## Step 5: Set Up Cloud Scheduler (Optional)
 
 Create a scheduled job to scan the Drive folder periodically:
 
@@ -168,7 +147,7 @@ Schedule variations:
 - Daily at 9 AM: `0 9 * * *`
 - Every 30 minutes: `*/30 * * * *`
 
-## Step 8: Verify Deployment
+## Step 6: Verify Deployment
 
 Test the endpoints:
 
@@ -190,28 +169,15 @@ curl $SERVICE_URL/files/YOUR_FILE_ID
 
 ## Updating the Service
 
-After making code changes:
-
-```bash
-# Rebuild and push image
-docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${SERVICE_NAME}/${SERVICE_NAME}:latest .
-docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/${SERVICE_NAME}/${SERVICE_NAME}:latest
-
-# Deploy new version
-gcloud run deploy $SERVICE_NAME \
-  --image=${REGION}-docker.pkg.dev/${PROJECT_ID}/${SERVICE_NAME}/${SERVICE_NAME}:latest \
-  --region=$REGION
-```
-
-Or use the `--source` flag to build and deploy in one step:
+After making code changes, simply redeploy:
 
 ```bash
 gcloud run deploy $SERVICE_NAME \
   --source=. \
-  --region=$REGION \
-  --service-account=$SERVICE_ACCOUNT \
-  --env-vars-file=env.yaml
+  --region=$REGION
 ```
+
+環境変数を変更する場合は `--env-vars-file` も指定してください。
 
 ## Monitoring and Logs
 
@@ -281,7 +247,7 @@ Ensure your service account has access to:
 **"Container failed to start"**:
 - Check logs: `gcloud run services logs read $SERVICE_NAME --region=$REGION`
 - Verify environment variables are set correctly
-- Test Docker image locally: `docker run -p 8080:8080 --env-file .env IMAGE_URL`
+- Test locally: `pnpm run dev` with a `.env` file
 
 **"Gemini API errors"**:
 - Verify `GOOGLE_GENERATIVE_AI_API_KEY` is correct
@@ -300,6 +266,38 @@ Ensure your service account has access to:
 - Adjust `--memory` and `--cpu` based on actual usage
 - Monitor costs in Cloud Console → Billing
 
+## Advanced: Manual Docker Build (Optional)
+
+If you need more control over the build process (e.g., for CI/CD pipelines), you can manually build and push Docker images:
+
+### Create Artifact Registry Repository
+
+```bash
+gcloud artifacts repositories create $SERVICE_NAME \
+  --repository-format=docker \
+  --location=$REGION \
+  --description="Meet Recording Quiz Maker container images"
+
+gcloud auth configure-docker ${REGION}-docker.pkg.dev
+```
+
+### Build and Push
+
+```bash
+docker build -t ${REGION}-docker.pkg.dev/${PROJECT_ID}/${SERVICE_NAME}/${SERVICE_NAME}:latest .
+docker push ${REGION}-docker.pkg.dev/${PROJECT_ID}/${SERVICE_NAME}/${SERVICE_NAME}:latest
+```
+
+### Deploy from Image
+
+```bash
+gcloud run deploy $SERVICE_NAME \
+  --image=${REGION}-docker.pkg.dev/${PROJECT_ID}/${SERVICE_NAME}/${SERVICE_NAME}:latest \
+  --region=$REGION \
+  --service-account=$SERVICE_ACCOUNT \
+  --env-vars-file=env.yaml
+```
+
 ## Next Steps
 
 - Set up monitoring alerts for errors and high latency
@@ -313,5 +311,5 @@ Ensure your service account has access to:
 
 - [Cloud Run Documentation](https://cloud.google.com/run/docs)
 - [Cloud Scheduler Documentation](https://cloud.google.com/scheduler/docs)
-- [Artifact Registry Documentation](https://cloud.google.com/artifact-registry/docs)
+- [Cloud Build Documentation](https://cloud.google.com/build/docs)
 - [Firestore Documentation](https://cloud.google.com/firestore/docs)
