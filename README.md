@@ -5,7 +5,7 @@ Cloud Run service that turns Google Meet recordings (Docs transcripts in a Drive
 ## Architecture
 
 - Cloud Run service (Express) with routes for scanning (`/tasks/scan`), per-file processing (`/tasks/process`), manual submission (`/manual`), status lookup (`/files/:fileId`), and a minimal UI (`/`).
-- Drive client: lists `GOOGLE_DRIVE_FOLDER_ID`, fetches metadata, exports Docs to text.
+- Drive client: lists files in configured folder (if `GOOGLE_DRIVE_FOLDER_ID` is set), fetches metadata, exports Docs to text.
 - Gemini client: generates quiz JSON from transcript using Vercel AI SDK (`generateObject`) with schema validation.
 - Forms client: creates a quiz-form (radio MCQ) and returns `formId`/`formUrl`.
 - Firestore: collection stores `fileId`, `status`, `modifiedTime`, `title`, `formId`, `formUrl`, `geminiSummary`, `questionCount`, timestamps, and `error`.
@@ -14,12 +14,12 @@ Cloud Run service that turns Google Meet recordings (Docs transcripts in a Drive
 
 Required env vars:
 
-- `GOOGLE_DRIVE_FOLDER_ID`: target Drive folder to scan.
 - `GOOGLE_GENERATIVE_AI_API_KEY`: API key for Gemini (used by Vercel AI SDK; read from env).
 - `FIRESTORE_COLLECTION`: Firestore collection name.
 
 Optional:
 
+- `GOOGLE_DRIVE_FOLDER_ID`: target Drive folder to scan. Required for `/tasks/scan` endpoint; not needed for manual operation via `/manual`.
 - `GEMINI_MODEL`: Gemini model name (default: `gemini-2.5-flash`).
 - `QUIZ_ADDITIONAL_PROMPT`: extra instructions appended to the Gemini prompt (e.g. `Use Japanese`).
 - `GOOGLE_ALLOWED_DOMAIN`: optional domain check for owners.
@@ -33,9 +33,9 @@ Permissions (service account on Cloud Run):
 
 ## Endpoints
 
-- `POST /tasks/scan` — scans `GOOGLE_DRIVE_FOLDER_ID` for new/changed files and processes them.
+- `POST /tasks/scan` — scans `GOOGLE_DRIVE_FOLDER_ID` for new/changed files and processes them. Requires `GOOGLE_DRIVE_FOLDER_ID` to be configured.
 - `POST /tasks/process` — body `{ fileId, force?, questionCount? }` processes one file.
-- `POST /manual` — body `{ driveUrl, force?, questionCount? }` parses `fileId` and processes.
+- `POST /manual` — body `{ driveUrl, force?, questionCount? }` parses `fileId` and processes. Works without `GOOGLE_DRIVE_FOLDER_ID`.
 - `GET /files/:fileId` — returns stored status/metadata.
 - `GET /` — minimal UI to paste a Drive URL.
 

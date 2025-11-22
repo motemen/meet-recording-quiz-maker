@@ -2,7 +2,7 @@ import { z } from "zod";
 
 const configSchema = z.object({
   port: z.coerce.number().default(8080),
-  googleDriveFolderId: z.string().min(1, "GOOGLE_DRIVE_FOLDER_ID is required"),
+  googleDriveFolderId: z.string().min(1).optional(),
   googleAllowedDomain: z.string().optional(),
   geminiModel: z.string().default("gemini-2.5-flash"),
   quizAdditionalPrompt: z.string().optional(),

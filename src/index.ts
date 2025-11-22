@@ -40,6 +40,12 @@ async function bootstrap() {
 
   app.post("/tasks/scan", async (c) => {
     logger.info("http_scan_requested");
+    if (!config.googleDriveFolderId) {
+      return c.json(
+        { error: "GOOGLE_DRIVE_FOLDER_ID is not configured. Scan functionality requires a folder ID." },
+        400,
+      );
+    }
     try {
       const result = await service.scanFolder();
       return c.json(result);
