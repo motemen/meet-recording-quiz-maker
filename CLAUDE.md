@@ -46,10 +46,10 @@ See `README.md` for optional variables.
 ## Architecture Notes
 
 ### Key Components
-- **Drive Client** (`src/services/drive.ts`): Lists and fetches Google Docs transcripts
-- **Gemini Client** (`src/services/gemini.ts`): Generates quiz JSON from transcripts
-- **Forms Client** (`src/services/forms.ts`): Creates Google Forms quizzes
-- **Firestore** (`src/services/firestore.ts`): Tracks processing state
+- **Drive Client** (`src/clients/drive.ts`): Lists and fetches Google Docs transcripts
+- **Gemini Client** (`src/clients/gemini.ts`): Generates quiz JSON from transcripts
+- **Forms Client** (`src/clients/forms.ts`): Creates Google Forms quizzes
+- **Firestore** (`src/repositories/meetingFilesRepository.ts`): Tracks processing state
 
 ### API Endpoints
 - `POST /tasks/scan`: Scans Drive folder for new/changed files
