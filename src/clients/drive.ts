@@ -46,6 +46,33 @@ export class DriveClient {
     }
   }
 
+  async getCallerEmail(): Promise<string | undefined> {
+    try {
+      const auth = new google.auth.GoogleAuth({
+        scopes: [
+          "https://www.googleapis.com/auth/drive.readonly",
+          "https://www.googleapis.com/auth/drive.file",
+        ],
+      });
+      const client = await auth.getClient();
+      const token = await client.getAccessToken();
+      const tokenValue = typeof token === "string" ? token : (token?.token ?? undefined);
+      if (!tokenValue) {
+        return undefined;
+      }
+      const res = await fetch(
+        `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(tokenValue)}`,
+      );
+      if (!res.ok) {
+        return undefined;
+      }
+      const info = (await res.json()) as { email?: string };
+      return info.email;
+    } catch {
+      return undefined;
+    }
+  }
+
   async listFolderFiles(folderId: string, pageSize = 50): Promise<DriveFileMetadata[]> {
     const res = await this.drive.files.list({
       q: `'${folderId}' in parents and trashed = false`,
