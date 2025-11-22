@@ -71,7 +71,7 @@ See `README.md` for optional variables.
 
 #### Adding a new feature
 1. Review existing code structure
-2. Create or modify relevant service files in `src/services/`
+2. Create or modify relevant files in `src/clients/` or `src/services/`
 3. Update route handlers in `src/index.ts` if needed
 4. Test with real credentials
 5. Update README.md with any new environment variables or endpoints
