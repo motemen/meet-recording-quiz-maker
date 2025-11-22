@@ -28,6 +28,13 @@ export class FormsClient {
     this.forms = google.forms({ version: "v1", auth });
     this.driveClient = options.driveClient ?? null;
     this.outputFolderId = options.outputFolderId;
+
+    // Validate that driveClient is provided when outputFolderId is specified
+    if (this.outputFolderId && !this.driveClient) {
+      throw new Error(
+        "driveClient is required when outputFolderId is specified. Cannot move forms without DriveClient.",
+      );
+    }
   }
 
   async createQuizForm(quiz: QuizPayload): Promise<CreateFormResult> {
