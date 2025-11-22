@@ -42,7 +42,10 @@ async function bootstrap() {
     logger.info("http_scan_requested");
     if (!config.googleDriveFolderId) {
       return c.json(
-        { error: "GOOGLE_DRIVE_FOLDER_ID is not configured. Scan functionality requires a folder ID." },
+        {
+          error:
+            "GOOGLE_DRIVE_FOLDER_ID is not configured. Scan functionality requires a folder ID.",
+        },
         400,
       );
     }

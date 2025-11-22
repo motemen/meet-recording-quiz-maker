@@ -20,6 +20,7 @@ Required env vars:
 Optional:
 
 - `GOOGLE_DRIVE_FOLDER_ID`: target Drive folder to scan. Required for `/tasks/scan` endpoint; not needed for manual operation via `/manual`.
+- `GOOGLE_DRIVE_OUTPUT_FOLDER_ID`: output Drive folder where created forms will be placed. Supports shared drives. If not set, forms remain in the creator's "My Drive".
 - `GEMINI_MODEL`: Gemini model name (default: `gemini-2.5-flash`).
 - `QUIZ_ADDITIONAL_PROMPT`: extra instructions appended to the Gemini prompt (e.g. `Use Japanese`).
 - `GOOGLE_ALLOWED_DOMAIN`: optional domain check for owners.
@@ -27,7 +28,8 @@ Optional:
 
 Permissions (service account on Cloud Run):
 
-- Drive read-only for the folder.
+- Drive read-only for the folder (scanning).
+- Drive file scope (to move created forms to output folder).
 - Forms create/body scope.
 - Firestore access.
 
