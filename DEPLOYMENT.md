@@ -34,7 +34,8 @@ gcloud services enable \
   cloudscheduler.googleapis.com \
   drive.googleapis.com \
   forms.googleapis.com \
-  firestore.googleapis.com
+  firestore.googleapis.com \
+  secretmanager.googleapis.com
 ```
 
 ## 2. サービスアカウントの作成
@@ -54,6 +55,11 @@ gcloud iam service-accounts create $SERVICE_ACCOUNT_NAME \
 gcloud projects add-iam-policy-binding $PROJECT_ID \
   --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
   --role="roles/datastore.user"
+
+# Secret Manager のシークレットアクセス権限を付与（Secret Manager を使用する場合）
+gcloud projects add-iam-policy-binding $PROJECT_ID \
+  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+  --role="roles/secretmanager.secretAccessor"
 ```
 
 **注意**: Google Drive と Forms の権限は、サービスアカウントに対してドメイン委任（Domain-wide Delegation）を設定するか、個別の Drive フォルダ/Forms に対して共有設定で権限を付与する必要があります。
@@ -81,7 +87,42 @@ Firestore データベースが未作成の場合、以下のコマンドで作�
 gcloud firestore databases create --location=$REGION
 ```
 
-## 4. Cloud Run へのデプロイ
+## 4. シークレットの管理（推奨）
+
+API キーなどの機密情報は、環境変数として直接設定するのではなく、**Secret Manager** を使用して安全に管理することを推奨します。
+
+### Secret Manager でシークレットを作成
+
+```bash
+# Gemini API キーをシークレットとして作成
+echo -n "your-actual-gemini-api-key" | gcloud secrets create gemini-api-key \
+  --data-file=- \
+  --replication-policy="automatic"
+
+# 他のシークレットも必要に応じて作成
+# echo -n "your-value" | gcloud secrets create secret-name --data-file=- --replication-policy="automatic"
+```
+
+### シークレットの確認
+
+```bash
+# シークレット一覧を表示
+gcloud secrets list
+
+# シークレットの値を確認（テスト用、本番環境では実行しない）
+gcloud secrets versions access latest --secret="gemini-api-key"
+```
+
+### シークレットの更新
+
+```bash
+# 既存のシークレットに新しいバージョンを追加
+echo -n "new-api-key-value" | gcloud secrets versions add gemini-api-key --data-file=-
+```
+
+**注意**: Secret Manager を使用する場合、サービスアカウントに `roles/secretmanager.secretAccessor` ロールが必要です（セクション 2 で設定済み）。
+
+## 5. Cloud Run へのデプロイ
 
 Cloud Run は pnpm に対応しているため、Dockerfile は不要です。ソースコードから直接デプロイできます。
 
@@ -161,7 +202,43 @@ gcloud run deploy meet-quiz-maker \
   --cpu=1
 ```
 
-## 5. デプロイの確認
+### Secret Manager を使用する場合（推奨）
+
+機密情報を Secret Manager で管理する場合、`--set-secrets` オプションを使用します。
+
+```bash
+# Gemini API キーを Secret Manager から読み込む
+gcloud run deploy meet-quiz-maker \
+  --source . \
+  --region=$REGION \
+  --platform=managed \
+  --allow-unauthenticated \
+  --service-account=$SERVICE_ACCOUNT_EMAIL \
+  --set-env-vars="FIRESTORE_COLLECTION=meetingFiles" \
+  --set-env-vars="GOOGLE_DRIVE_FOLDER_ID=${GOOGLE_DRIVE_FOLDER_ID}" \
+  --set-env-vars="GOOGLE_DRIVE_OUTPUT_FOLDER_ID=${GOOGLE_DRIVE_OUTPUT_FOLDER_ID}" \
+  --set-env-vars="GEMINI_MODEL=gemini-2.5-flash" \
+  --set-env-vars="QUIZ_ADDITIONAL_PROMPT=Use Japanese" \
+  --set-env-vars="GOOGLE_ALLOWED_DOMAIN=yourdomain.com" \
+  --set-env-vars="PORT=8080" \
+  --set-secrets="GOOGLE_GENERATIVE_AI_API_KEY=gemini-api-key:latest" \
+  --port=8080 \
+  --timeout=300 \
+  --memory=512Mi \
+  --cpu=1
+```
+
+`--set-secrets` の形式:
+- `環境変数名=シークレット名:バージョン`
+- バージョンは `latest` で最新版を参照、または `1`, `2` などの特定バージョンを指定可能
+
+**メリット**:
+- API キーがコマンド履歴やログに残らない
+- シークレットのローテーションが容易
+- バージョン管理により、以前の値にロールバック可能
+- IAM でアクセス制御が可能
+
+## 6. デプロイの確認
 
 デプロイが完了すると、サービスの URL が表示されます:
 
@@ -184,7 +261,7 @@ curl -X POST $SERVICE_URL/manual \
   -d '{"driveUrl": "https://docs.google.com/document/d/YOUR_FILE_ID/edit"}'
 ```
 
-## 6. Cloud Scheduler の設定（定期実行）
+## 7. Cloud Scheduler の設定（定期実行）
 
 `/tasks/scan` エンドポイントを定期的に実行するために Cloud Scheduler を設定します。
 
@@ -213,7 +290,7 @@ gcloud scheduler jobs create http meet-quiz-scan \
 gcloud scheduler jobs run meet-quiz-scan --location=$REGION
 ```
 
-## 7. 認証の設定（推奨）
+## 8. 認証の設定（推奨）
 
 本番環境では、エンドポイントへのアクセスを制限することを推奨します。
 
@@ -232,7 +309,7 @@ gcloud run services update meet-quiz-maker \
 
 上記の `--oidc-service-account-email` と `--oidc-token-audience` を使用することで、OIDC トークンによる認証が行われます。
 
-## 8. ログとモニタリング
+## 9. ログとモニタリング
 
 ### ログの確認
 
@@ -250,7 +327,7 @@ gcloud run services logs tail meet-quiz-maker --region=$REGION
 
 [Cloud Run Console](https://console.cloud.google.com/run) でメトリクス、リクエスト数、エラー率などを確認できます。
 
-## 9. アップデート
+## 10. アップデート
 
 コードを変更した後、同じデプロイコマンドを再実行するだけで新しいリビジョンがデプロイされます:
 
@@ -268,7 +345,7 @@ gcloud run services update meet-quiz-maker \
   --set-env-vars="GEMINI_MODEL=gemini-2.0-flash-exp"
 ```
 
-## 10. トラブルシューティング
+## 11. トラブルシューティング
 
 ### デプロイが失敗する場合
 
@@ -298,4 +375,6 @@ gcloud run services update meet-quiz-maker \
 
 - [Cloud Run Documentation](https://cloud.google.com/run/docs)
 - [Cloud Scheduler Documentation](https://cloud.google.com/scheduler/docs)
+- [Secret Manager Documentation](https://cloud.google.com/secret-manager/docs)
+- [Cloud Run と Secret Manager の統合](https://cloud.google.com/run/docs/configuring/secrets)
 - [Service Account Domain-wide Delegation](https://developers.google.com/identity/protocols/oauth2/service-account#delegatingauthority)
