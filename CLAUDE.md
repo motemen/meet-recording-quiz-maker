@@ -109,16 +109,21 @@ When writing complex features or significant refactors, use an ExecPlan (as desc
 
 ## Deployment
 
-This service is designed to run on Google Cloud Run:
+This service is designed to run on Google Cloud Run. Cloud Run supports pnpm natively, so no Dockerfile is needed.
 
-1. **Service Account**: Needs Drive (read-only), Forms (create/body), and Firestore access
-2. **Cloud Scheduler**: Set up periodic calls to `/tasks/scan`
-3. **Environment Variables**: Configure all required env vars in Cloud Run
-4. **Monitoring**: Add logging and error tracking once basic flow is verified
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete deployment instructions, including:
+
+1. **Service Account**: Configure with Drive (read-only), Forms (create/body), and Firestore access
+2. **Cloud Run Deployment**: Deploy directly from source using `gcloud run deploy`
+3. **Cloud Scheduler**: Set up periodic calls to `/tasks/scan` using cron syntax
+4. **Environment Variables**: Configure all required env vars in Cloud Run
+5. **Authentication**: Optional IAP or OIDC token authentication for production
+6. **Monitoring**: View logs and metrics in Cloud Console
 
 ## Resources
 
 - **README.md**: Architecture and endpoint documentation
+- **DEPLOYMENT.md**: Detailed deployment instructions for Cloud Run and Cloud Scheduler
 - **AGENTS.md**: Guidance for developing with AI agents
 - **package.json**: Available scripts and dependencies
 - **.env.example**: Required environment variables
