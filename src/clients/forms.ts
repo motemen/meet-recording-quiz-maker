@@ -8,12 +8,17 @@ export interface CreateFormResult {
   formUrl: string;
 }
 
+export interface FormsClientOptions {
+  driveClient?: DriveClient;
+  outputFolderId?: string;
+}
+
 export class FormsClient {
   private forms: forms_v1.Forms;
   private driveClient: DriveClient | null;
   private outputFolderId?: string;
 
-  constructor(driveClient?: DriveClient) {
+  constructor(options: FormsClientOptions = {}) {
     const auth = new google.auth.GoogleAuth({
       scopes: [
         "https://www.googleapis.com/auth/forms.body",
@@ -21,8 +26,8 @@ export class FormsClient {
       ],
     });
     this.forms = google.forms({ version: "v1", auth });
-    this.driveClient = driveClient ?? null;
-    this.outputFolderId = process.env.GOOGLE_DRIVE_OUTPUT_FOLDER_ID;
+    this.driveClient = options.driveClient ?? null;
+    this.outputFolderId = options.outputFolderId;
   }
 
   async createQuizForm(quiz: QuizPayload): Promise<CreateFormResult> {
