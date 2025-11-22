@@ -119,7 +119,7 @@ This service is designed to run on Google Cloud Run:
 ## Resources
 
 - **README.md**: Architecture and endpoint documentation
-- **AGENTS.md**: ExecPlan guidelines
+- **AGENTS.md**: Guidance for developing with AI agents
 - **package.json**: Available scripts and dependencies
 - **.env.example**: Required environment variables
 - **biome.json**: Linting and formatting configuration
