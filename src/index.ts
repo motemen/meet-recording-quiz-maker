@@ -41,14 +41,6 @@ async function bootstrap() {
     return c.json({ ok: true });
   });
 
-  app.get("/config", async (c) => {
-    const email = await driveClient.getCallerEmail();
-    return c.json({
-      serviceAccountEmail: email,
-      outputFolderId: config.googleDriveOutputFolderId,
-    });
-  });
-
   app.post("/tasks/scan", async (c) => {
     logger.info("http_scan_requested");
     if (!config.googleDriveFolderId) {
@@ -155,7 +147,10 @@ async function bootstrap() {
     return c.json(record);
   });
 
-  app.get("/", (c) => {
+  app.get("/", async (c) => {
+    const serviceAccountEmail = await driveClient.getCallerEmail();
+    const outputFolderId = config.googleDriveOutputFolderId;
+
     return c.html(`
 <!doctype html>
 <html lang="en">
@@ -184,9 +179,9 @@ async function bootstrap() {
     <div class="config-info">
       <dl>
         <dt>Service Account:</dt>
-        <dd id="serviceAccount">Loading...</dd>
+        <dd id="serviceAccount">${serviceAccountEmail || "Not available"}</dd>
         <dt>Output Folder ID:</dt>
-        <dd id="outputFolder">Loading...</dd>
+        <dd id="outputFolder">${outputFolderId || "Not configured"}</dd>
       </dl>
     </div>
 
@@ -199,23 +194,8 @@ async function bootstrap() {
       const submit = document.getElementById('submit');
       const driveUrlInput = document.getElementById('driveUrl');
       const statusEl = document.getElementById('status');
-      const serviceAccountEl = document.getElementById('serviceAccount');
-      const outputFolderEl = document.getElementById('outputFolder');
 
       let pollInterval = null;
-
-      // Load config info on page load
-      async function loadConfig() {
-        try {
-          const resp = await fetch('/config');
-          const data = await resp.json();
-          serviceAccountEl.textContent = data.serviceAccountEmail || 'Not available';
-          outputFolderEl.textContent = data.outputFolderId || 'Not configured';
-        } catch (err) {
-          serviceAccountEl.textContent = 'Error loading';
-          outputFolderEl.textContent = 'Error loading';
-        }
-      }
 
       // Poll file status
       async function pollStatus(fileId) {
@@ -294,9 +274,6 @@ async function bootstrap() {
           statusEl.innerHTML = '<span class="error">Error: ' + err.message + '</span>';
         }
       };
-
-      // Load config on page load
-      loadConfig();
     </script>
   </body>
 </html>
