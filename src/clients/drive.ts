@@ -26,8 +26,8 @@ export class DriveClient {
   private async logCaller(auth: InstanceType<typeof google.auth.GoogleAuth>): Promise<void> {
     try {
       const client = await auth.getClient();
-      const token = await client.getAccessToken();
-      const tokenValue = typeof token === "string" ? token : (token?.token ?? undefined);
+      const tokenResponse = await client.getAccessToken();
+      const tokenValue = tokenResponse.token;
       if (!tokenValue) {
         logger.warn("drive_auth_no_token");
         return;
@@ -55,20 +55,23 @@ export class DriveClient {
         ],
       });
       const client = await auth.getClient();
-      const token = await client.getAccessToken();
-      const tokenValue = typeof token === "string" ? token : (token?.token ?? undefined);
+      const tokenResponse = await client.getAccessToken();
+      const tokenValue = tokenResponse.token;
       if (!tokenValue) {
+        logger.warn("get_caller_email_no_token");
         return undefined;
       }
       const res = await fetch(
         `https://oauth2.googleapis.com/tokeninfo?access_token=${encodeURIComponent(tokenValue)}`,
       );
       if (!res.ok) {
+        logger.warn("get_caller_email_tokeninfo_failed", { status: res.status });
         return undefined;
       }
       const info = (await res.json()) as { email?: string };
       return info.email;
-    } catch {
+    } catch (error) {
+      logger.warn("get_caller_email_failed", { error });
       return undefined;
     }
   }
