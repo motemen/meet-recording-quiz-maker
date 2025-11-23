@@ -1,5 +1,7 @@
 import "dotenv/config";
+import { resolve } from "node:path";
 import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
 import { Hono } from "hono";
 import { DriveClient } from "./clients/drive.js";
 import { FormsClient } from "./clients/forms.js";
@@ -21,6 +23,7 @@ async function readJsonBody<T>(request: Request): Promise<T | undefined> {
 async function bootstrap() {
   const config = loadConfig();
   const app = new Hono();
+  const staticRoot = resolve(process.cwd(), "dist", "public");
 
   const repo = new MeetingFilesRepository({ collectionName: config.firestoreCollection });
   const driveClient = new DriveClient();
@@ -147,52 +150,9 @@ async function bootstrap() {
     return c.json(record);
   });
 
-  app.get("/", (c) => {
-    return c.html(`
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="utf-8" />
-    <title>Meet Recording Quiz Maker</title>
-    <style>
-      body { font-family: sans-serif; max-width: 720px; margin: 2rem auto; padding: 0 1rem; }
-      input[type="text"] { width: 100%; padding: 0.5rem; font-size: 1rem; }
-      button { margin-top: 0.5rem; padding: 0.5rem 1rem; font-size: 1rem; }
-      #status { margin-top: 1rem; white-space: pre-wrap; }
-    </style>
-  </head>
-  <body>
-    <h1>Meet Recording Quiz Maker</h1>
-    <p>Paste a Google Drive file URL to create a quiz.</p>
-    <input id="driveUrl" type="text" placeholder="https://docs.google.com/document/d/..." />
-    <button id="submit">Create quiz</button>
-    <div id="status"></div>
-    <script>
-      const submit = document.getElementById('submit');
-      const driveUrlInput = document.getElementById('driveUrl');
-      const statusEl = document.getElementById('status');
-
-      submit.onclick = async () => {
-        const driveUrl = driveUrlInput.value;
-        statusEl.textContent = 'Submitting...';
-        try {
-          const resp = await fetch('/manual', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ driveUrl })
-          });
-          const data = await resp.json();
-          if (!resp.ok) throw new Error(data.error || 'Request failed');
-          statusEl.textContent = 'Processing started for file ' + data.fileId + '. Refresh /files/' + data.fileId;
-        } catch (err) {
-          statusEl.textContent = 'Error: ' + err.message;
-        }
-      };
-    </script>
-  </body>
-</html>
-    `);
-  });
+  app.use("/assets/*", serveStatic({ root: staticRoot }));
+  app.get("/vite.svg", serveStatic({ path: `${staticRoot}/vite.svg` }));
+  app.get("/*", serveStatic({ path: `${staticRoot}/index.html` }));
 
   const port = config.port;
   serve(
