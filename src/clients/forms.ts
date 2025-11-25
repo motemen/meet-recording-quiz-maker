@@ -1,5 +1,5 @@
 import { type forms_v1, google } from "googleapis";
-import { logger } from "../logger";
+import { logger } from "../logger.js";
 import type { QuizPayload } from "../types";
 import type { DriveClient } from "./drive";
 

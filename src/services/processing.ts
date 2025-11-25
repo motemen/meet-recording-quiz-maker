@@ -2,7 +2,7 @@ import type { DriveClient, DriveFileMetadata } from "../clients/drive";
 import type { FormsClient } from "../clients/forms";
 import type { GeminiClient } from "../clients/gemini";
 import type { AppConfig } from "../config";
-import { logger } from "../logger";
+import { logger } from "../logger.js";
 import type { MeetingFilesRepository } from "../repositories/meetingFilesRepository";
 import type { MeetingFile } from "../types";
 

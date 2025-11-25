@@ -1,5 +1,5 @@
 import { type drive_v3, google } from "googleapis";
-import { logger } from "../logger";
+import { logger } from "../logger.js";
 
 export interface DriveFileMetadata {
   id: string;
