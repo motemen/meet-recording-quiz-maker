@@ -40,10 +40,11 @@ async function bootstrap() {
   const app = new Hono();
 
   const repo = new MeetingFilesRepository({ collectionName: config.firestoreCollection });
-  const driveClient = new DriveClient();
+  const driveClient = new DriveClient({ serviceAccountEmail: config.serviceAccountEmail });
   const formsClient = new FormsClient({
     driveClient,
     outputFolderId: config.googleDriveOutputFolderId,
+    serviceAccountEmail: config.serviceAccountEmail,
   });
   const geminiClient = new GeminiClient({ modelName: config.geminiModel });
   const service = new ProcessingService({

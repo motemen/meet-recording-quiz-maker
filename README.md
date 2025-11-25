@@ -15,6 +15,7 @@ Cloud Run service that turns Google Meet recordings (Docs transcripts in a Drive
 Required env vars:
 
 - `FIRESTORE_COLLECTION`: Firestore collection name.
+- `SERVICE_ACCOUNT_EMAIL`: service account email used for Drive/Docs/Forms impersonation.
 - One of:
   - `GOOGLE_GENERATIVE_AI_API_KEY`: API key for Gemini (used by Vercel AI SDK; read from env).
   - `GOOGLE_GENERATIVE_AI_API_KEY_SECRET`: Secret Manager resource name
@@ -24,7 +25,6 @@ Optional:
 
 - `GOOGLE_DRIVE_FOLDER_ID`: target Drive folder to scan. Required for `/tasks/scan` endpoint; not needed for manual operation via `/manual`.
 - `GOOGLE_DRIVE_OUTPUT_FOLDER_ID`: output Drive folder where created forms will be placed. Supports shared drives. If not set, forms remain in the creator's "My Drive".
-- `GOOGLE_IMPERSONATED_SERVICE_ACCOUNT`: service account email to impersonate when calling Drive/Docs APIs (Firestore access uses default credentials).
 - `GEMINI_MODEL`: Gemini model name (default: `gemini-2.5-flash`).
 - `QUIZ_ADDITIONAL_PROMPT`: extra instructions appended to the Gemini prompt (e.g. `Use Japanese`).
 - `GOOGLE_ALLOWED_DOMAIN`: optional domain check for owners.

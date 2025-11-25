@@ -1,6 +1,11 @@
-import { type AuthClient, Impersonated } from "google-auth-library";
+import type { AuthClient } from "google-auth-library";
 import { type docs_v1, type drive_v3, google } from "googleapis";
 import { logger } from "../logger.js";
+import { createImpersonatedAuthClient } from "../utils/googleAuth.js";
+
+interface DriveClientOptions {
+  serviceAccountEmail: string;
+}
 
 export interface DriveFileMetadata {
   id: string;
@@ -27,37 +32,22 @@ export class DriveClient {
   private drivePromise: Promise<drive_v3.Drive>;
   private docsPromise: Promise<docs_v1.Docs>;
 
-  constructor() {
-    this.authPromise = this.createAuthClient();
+  constructor(options: DriveClientOptions) {
+    this.authPromise = this.createAuthClient(options.serviceAccountEmail);
     this.drivePromise = this.authPromise.then((auth) => google.drive({ version: "v3", auth }));
     this.docsPromise = this.authPromise.then((auth) => google.docs({ version: "v1", auth }));
-    void this.logCaller();
   }
 
-  private async createAuthClient(): Promise<AuthClient> {
+  private createAuthClient(serviceAccountEmail: string): Promise<AuthClient> {
     const scopes = [
       "https://www.googleapis.com/auth/drive.readonly",
       "https://www.googleapis.com/auth/drive.file",
       "https://www.googleapis.com/auth/documents",
     ];
-    const impersonatedServiceAccount = process.env.GOOGLE_IMPERSONATED_SERVICE_ACCOUNT;
-
-    const baseAuth = new google.auth.GoogleAuth({ scopes });
-    if (!impersonatedServiceAccount) {
-      return baseAuth.getClient();
-    }
-
-    const sourceClient = await baseAuth.getClient();
-    return new Impersonated({
-      sourceClient,
-      targetPrincipal: impersonatedServiceAccount,
-      delegates: [],
-      lifetime: 3600,
-      targetScopes: scopes,
-    });
+    return createImpersonatedAuthClient(serviceAccountEmail, scopes);
   }
 
-  private async logCaller(): Promise<void> {
+  async logCaller(): Promise<void> {
     try {
       const client = await this.authPromise;
       const token = await client.getAccessToken();

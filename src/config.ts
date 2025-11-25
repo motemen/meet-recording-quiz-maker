@@ -10,6 +10,7 @@ const configSchema = z.object({
   firestoreCollection: z.string().min(1, "FIRESTORE_COLLECTION is required"),
   gcloudProject: z.string().optional(),
   googleGenerativeAiApiKeySecret: z.string().optional(),
+  serviceAccountEmail: z.string().min(1, "SERVICE_ACCOUNT_EMAIL is required"),
 });
 
 export type AppConfig = z.infer<typeof configSchema>;
@@ -25,6 +26,7 @@ export function loadConfig(env = process.env): AppConfig {
     firestoreCollection: env.FIRESTORE_COLLECTION,
     gcloudProject: env.GCLOUD_PROJECT,
     googleGenerativeAiApiKeySecret: env.GOOGLE_GENERATIVE_AI_API_KEY_SECRET,
+    serviceAccountEmail: env.SERVICE_ACCOUNT_EMAIL,
   });
 
   if (!parsed.success) {
