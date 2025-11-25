@@ -1,0 +1,14 @@
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind base import */
+@tailwind base;
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind components import */
+@tailwind components;
+/* biome-ignore lint/suspicious/noUnknownAtRules: Tailwind utilities import */
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+body {
+  min-height: 100vh;
+}

@@ -4,7 +4,7 @@ Cloud Run service that turns Google Meet recordings (Docs transcripts in a Drive
 
 ## Architecture
 
-- Cloud Run service (Express) with routes for scanning (`/tasks/scan`), per-file processing (`/tasks/process`), manual submission (`/manual`), status lookup (`/files/:fileId`), and a minimal UI (`/`).
+- Cloud Run service (Express/Hono) with routes for scanning (`/tasks/scan`), per-file processing (`/tasks/process`), manual submission (`/manual`), status lookup (`/files/:fileId`), and a React/Tailwind UI served at `/`.
 - Drive client: lists files in configured folder (if `GOOGLE_DRIVE_FOLDER_ID` is set), fetches metadata, exports Docs to text.
 - Gemini client: generates quiz JSON from transcript using Vercel AI SDK (`generateObject`) with schema validation.
 - Forms client: creates a quiz-form (radio MCQ) and returns `formId`/`formUrl`.
@@ -42,7 +42,7 @@ Permissions (service account on Cloud Run):
 - `POST /tasks/process` — body `{ fileId, force?, questionCount? }` processes one file.
 - `POST /manual` — body `{ driveUrl, force?, questionCount? }` parses `fileId` and processes. Works without `GOOGLE_DRIVE_FOLDER_ID`.
 - `GET /files/:fileId` — returns stored status/metadata.
-- `GET /` — minimal UI to paste a Drive URL.
+- `GET /` — React/Vite UI to paste a Drive URL and optionally specify a question count.
 
 ## Development
 
@@ -50,6 +50,9 @@ Permissions (service account on Cloud Run):
 pnpm install
 pnpm run dev
 ```
+
+- Frontend dev server: `pnpm run dev:web` (Vite, runs on port 5173)
+- Build both frontend and backend: `pnpm run build`
 
 Create a `.env` (see `.env.example`) to supply secrets/IDs; they are loaded via `dotenv`.
 
