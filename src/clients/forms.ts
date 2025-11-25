@@ -21,8 +21,8 @@ export class FormsClient {
   constructor(options: FormsClientOptions = {}) {
     const auth = new google.auth.GoogleAuth({
       scopes: [
-        'https://www.googleapis.com/auth/cloud-platform',
-        'https://www.googleapis.com/auth/drive',
+        "https://www.googleapis.com/auth/cloud-platform",
+        "https://www.googleapis.com/auth/drive",
       ],
     });
     this.forms = google.forms({ version: "v1", auth });
