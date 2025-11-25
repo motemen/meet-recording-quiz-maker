@@ -1,3 +1,4 @@
+import { Impersonated } from "google-auth-library";
 import { type forms_v1, google } from "googleapis";
 import { logger } from "../logger.js";
 import type { QuizPayload } from "../types";
@@ -14,18 +15,12 @@ export interface FormsClientOptions {
 }
 
 export class FormsClient {
-  private forms: forms_v1.Forms;
+  private forms!: forms_v1.Forms;
   private driveClient: DriveClient | null;
   private outputFolderId?: string;
+  private _initPromise: Promise<void>;
 
   constructor(options: FormsClientOptions = {}) {
-    const auth = new google.auth.GoogleAuth({
-      scopes: [
-        'https://www.googleapis.com/auth/cloud-platform',
-        'https://www.googleapis.com/auth/drive',
-      ],
-    });
-    this.forms = google.forms({ version: "v1", auth });
     this.driveClient = options.driveClient ?? null;
     this.outputFolderId = options.outputFolderId;
 
@@ -35,9 +30,50 @@ export class FormsClient {
         "driveClient is required when outputFolderId is specified. Cannot move forms without DriveClient.",
       );
     }
+
+    this._initPromise = this.initialize();
+  }
+
+  private async initialize(): Promise<void> {
+    const scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/drive",
+    ];
+
+    const serviceAccountEmail = process.env.SERVICE_ACCOUNT_EMAIL;
+
+    if (serviceAccountEmail) {
+      logger.info("forms_client_impersonation_enabled", { serviceAccountEmail });
+
+      // Create source auth client
+      const sourceAuth = new google.auth.GoogleAuth({ scopes });
+      const sourceClient = await sourceAuth.getClient();
+
+      // Create impersonated client
+      // Note: Type casting needed due to googleapis auth client compatibility
+      const impersonatedAuth = new Impersonated({
+        // biome-ignore lint/suspicious/noExplicitAny: AuthClient type compatibility with googleapis
+        sourceClient: sourceClient as any,
+        targetPrincipal: serviceAccountEmail,
+        targetScopes: scopes,
+        lifetime: 3600,
+      });
+
+      // biome-ignore lint/suspicious/noExplicitAny: Impersonated is compatible but needs type assertion
+      this.forms = google.forms({ version: "v1", auth: impersonatedAuth as any });
+    } else {
+      // Use default auth without impersonation
+      const auth = new google.auth.GoogleAuth({ scopes });
+      this.forms = google.forms({ version: "v1", auth });
+    }
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    await this._initPromise;
   }
 
   async createBlankForm(title: string): Promise<CreateFormResult> {
+    await this.ensureInitialized();
     const createRes = await this.forms.forms.create({
       requestBody: {
         info: {
@@ -61,6 +97,7 @@ export class FormsClient {
   }
 
   async createQuizForm(quiz: QuizPayload): Promise<CreateFormResult> {
+    await this.ensureInitialized();
     if (!this.outputFolderId || !this.driveClient) {
       throw new Error(
         "outputFolderId and driveClient are required when creating quiz forms in Drive",

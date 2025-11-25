@@ -1,3 +1,4 @@
+import { Impersonated } from "google-auth-library";
 import { type docs_v1, type drive_v3, google } from "googleapis";
 import { logger } from "../logger.js";
 
@@ -22,25 +23,63 @@ export interface DriveQuota {
 }
 
 export class DriveClient {
-  private drive: drive_v3.Drive;
-  private docs: docs_v1.Docs;
+  private drive!: drive_v3.Drive;
+  private docs!: docs_v1.Docs;
+  private _initPromise: Promise<void>;
 
   constructor() {
-    const auth = new google.auth.GoogleAuth({
-      scopes: [
-        "https://www.googleapis.com/auth/drive.readonly",
-        "https://www.googleapis.com/auth/drive.file",
-        "https://www.googleapis.com/auth/documents",
-      ],
-    });
-    void this.logCaller(auth);
-    this.drive = google.drive({ version: "v3", auth });
-    this.docs = google.docs({ version: "v1", auth });
+    this._initPromise = this.initialize();
   }
 
-  private async logCaller(auth: InstanceType<typeof google.auth.GoogleAuth>): Promise<void> {
+  private async initialize(): Promise<void> {
+    const scopes = [
+      "https://www.googleapis.com/auth/drive.readonly",
+      "https://www.googleapis.com/auth/drive.file",
+      "https://www.googleapis.com/auth/documents",
+    ];
+
+    const serviceAccountEmail = process.env.SERVICE_ACCOUNT_EMAIL;
+
+    if (serviceAccountEmail) {
+      logger.info("drive_client_impersonation_enabled", { serviceAccountEmail });
+
+      // Create source auth client
+      const sourceAuth = new google.auth.GoogleAuth({ scopes });
+      const sourceClient = await sourceAuth.getClient();
+
+      // Create impersonated client
+      // Note: Type casting needed due to googleapis auth client compatibility
+      const impersonatedAuth = new Impersonated({
+        // biome-ignore lint/suspicious/noExplicitAny: AuthClient type compatibility with googleapis
+        sourceClient: sourceClient as any,
+        targetPrincipal: serviceAccountEmail,
+        targetScopes: scopes,
+        lifetime: 3600,
+      });
+
+      void this.logCaller(impersonatedAuth);
+      // biome-ignore lint/suspicious/noExplicitAny: Impersonated is compatible but needs type assertion
+      this.drive = google.drive({ version: "v3", auth: impersonatedAuth as any });
+      // biome-ignore lint/suspicious/noExplicitAny: Impersonated is compatible but needs type assertion
+      this.docs = google.docs({ version: "v1", auth: impersonatedAuth as any });
+    } else {
+      // Use default auth without impersonation
+      const auth = new google.auth.GoogleAuth({ scopes });
+      void this.logCaller(auth);
+      this.drive = google.drive({ version: "v3", auth });
+      this.docs = google.docs({ version: "v1", auth });
+    }
+  }
+
+  private async ensureInitialized(): Promise<void> {
+    await this._initPromise;
+  }
+
+  private async logCaller(
+    auth: InstanceType<typeof google.auth.GoogleAuth> | Impersonated,
+  ): Promise<void> {
     try {
-      const client = await auth.getClient();
+      const client = auth instanceof google.auth.GoogleAuth ? await auth.getClient() : auth;
       const token = await client.getAccessToken();
       const tokenValue = typeof token === "string" ? token : (token?.token ?? undefined);
       if (!tokenValue) {
@@ -62,6 +101,7 @@ export class DriveClient {
   }
 
   async listFolderFiles(folderId: string, pageSize = 50): Promise<DriveFileMetadata[]> {
+    await this.ensureInitialized();
     const res = await this.drive.files.list({
       q: `'${folderId}' in parents and trashed = false`,
       fields: "files(id, name, mimeType, modifiedTime, properties)",
@@ -83,6 +123,7 @@ export class DriveClient {
   }
 
   async getFileMetadata(fileId: string): Promise<DriveFileMetadata> {
+    await this.ensureInitialized();
     const res = await this.drive.files.get({
       fileId,
       fields: "id, name, mimeType, modifiedTime, properties",
@@ -102,6 +143,7 @@ export class DriveClient {
   }
 
   async createBlankDocument(title: string): Promise<CreateDocumentResult> {
+    await this.ensureInitialized();
     const res = await this.docs.documents.create({
       requestBody: { title },
     });
@@ -128,6 +170,7 @@ export class DriveClient {
     folderId: string,
     mimeType = "application/vnd.google-apps.document",
   ): Promise<CreateDocumentResult> {
+    await this.ensureInitialized();
     const res = await this.drive.files.create({
       requestBody: {
         name: title,
@@ -149,6 +192,7 @@ export class DriveClient {
   }
 
   async getQuota(): Promise<DriveQuota> {
+    await this.ensureInitialized();
     const res = await this.drive.about.get({
       fields: "storageQuota(limit,usage,usageInDrive,usageInDriveTrash)",
     });
@@ -156,6 +200,7 @@ export class DriveClient {
   }
 
   async exportDocumentText(fileId: string): Promise<string> {
+    await this.ensureInitialized();
     const res = await this.drive.files.export(
       { fileId, mimeType: "text/plain" },
       { responseType: "arraybuffer" },
@@ -167,6 +212,7 @@ export class DriveClient {
   }
 
   async setFileProperties(fileId: string, properties: Record<string, string>): Promise<void> {
+    await this.ensureInitialized();
     await this.drive.files.update({
       fileId,
       requestBody: { properties },
@@ -174,6 +220,7 @@ export class DriveClient {
   }
 
   async moveFileToFolder(fileId: string, folderId: string): Promise<void> {
+    await this.ensureInitialized();
     // Get current parents
     const file = await this.drive.files.get({
       fileId,
