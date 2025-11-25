@@ -80,6 +80,8 @@ export class FormsClient {
       throw new Error("Failed to create Google Form");
     }
 
+    await this.clearFormItems(formId);
+
     const updateFormInfoMask: string[] = ["title"];
     if (quiz.summary) {
       updateFormInfoMask.push("description");
@@ -116,6 +118,7 @@ export class FormsClient {
                     shuffle: false,
                   },
                   grading: {
+                    pointValue: 1,
                     correctAnswers: { answers: [{ value: correctValue }] },
                     whenRight: q.rationale ? { text: q.rationale } : undefined,
                     whenWrong: q.rationale ? { text: q.rationale } : undefined,
@@ -141,6 +144,25 @@ export class FormsClient {
       formId,
       formUrl,
     };
+  }
+
+  private async clearFormItems(formId: string): Promise<void> {
+    const { data } = await this.forms.forms.get({ formId, fields: "items" });
+    const items = data.items ?? [];
+    if (items.length === 0) return;
+
+    const deleteRequests = items
+      .map(
+        (_, index): forms_v1.Schema$Request => ({
+          deleteItem: { location: { index } },
+        }),
+      )
+      .reverse();
+
+    await this.forms.forms.batchUpdate({
+      formId,
+      requestBody: { requests: deleteRequests },
+    });
   }
 
   private async moveFormToOutputFolder(formId: string): Promise<void> {
