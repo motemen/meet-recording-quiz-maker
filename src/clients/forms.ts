@@ -80,7 +80,7 @@ export class FormsClient {
       throw new Error("Failed to create Google Form");
     }
 
-    const updateFormInfoMask: string[] = ["title", "documentTitle"];
+    const updateFormInfoMask: string[] = ["title"];
     if (quiz.summary) {
       updateFormInfoMask.push("description");
     }
@@ -90,7 +90,6 @@ export class FormsClient {
         updateFormInfo: {
           info: {
             title: quiz.title,
-            documentTitle: quiz.title,
             description: quiz.summary ?? undefined,
           },
           updateMask: updateFormInfoMask.join(","),
