@@ -14,8 +14,11 @@ Cloud Run service that turns Google Meet recordings (Docs transcripts in a Drive
 
 Required env vars:
 
-- `GOOGLE_GENERATIVE_AI_API_KEY`: API key for Gemini (used by Vercel AI SDK; read from env).
 - `FIRESTORE_COLLECTION`: Firestore collection name.
+- One of:
+  - `GOOGLE_GENERATIVE_AI_API_KEY`: API key for Gemini (used by Vercel AI SDK; read from env).
+  - `GOOGLE_GENERATIVE_AI_API_KEY_SECRET`: Secret Manager resource name
+    (`projects/{project}/secrets/{secret}/versions/{version}`) to fetch the API key.
 
 Optional:
 

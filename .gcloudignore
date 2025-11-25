@@ -1,0 +1,8 @@
+# ignore all
+/*
+
+# upload list
+!/app.yaml
+!/package.json
+!/pnpm-lock.yaml
+!/dist/

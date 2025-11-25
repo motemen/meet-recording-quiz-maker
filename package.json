@@ -14,11 +14,13 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "format:check": "biome format ."
+    "format:check": "biome format .",
+    "gcp-build": ""
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.40",
     "@google-cloud/firestore": "^7.9.0",
+    "@google-cloud/secret-manager": "^6.1.1",
     "@hono/node-server": "^1.19.6",
     "ai": "^5.0.98",
     "dotenv": "^17.2.3",

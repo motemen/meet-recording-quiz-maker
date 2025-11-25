@@ -72,7 +72,7 @@ export class ProcessingService {
     metadata?: DriveFileMetadata;
     questionCount?: number;
   }): Promise<MeetingFile> {
-    const { fileId, force = false, metadata, questionCount = 5 } = input;
+    const { fileId, force = false, metadata, questionCount = 10 } = input;
     logger.info("process_file_start", {
       fileId,
       force,
