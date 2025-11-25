@@ -42,6 +42,7 @@ export class FormsClient {
       requestBody: {
         info: {
           title: quiz.title,
+          documentTitle: quiz.title,
         },
       },
     });
@@ -52,12 +53,6 @@ export class FormsClient {
     }
 
     const requests: forms_v1.Schema$Request[] = [
-      {
-        updateFormInfo: {
-          info: { documentTitle: quiz.title },
-          updateMask: "documentTitle",
-        },
-      },
       ...(quiz.summary
         ? [
             {
