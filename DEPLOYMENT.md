@@ -119,7 +119,6 @@ Set environment variables:
 
 ```yaml
 env_variables:
-  FIRESTORE_COLLECTION: "meetingFiles"
   GOOGLE_GENERATIVE_AI_API_KEY: "your-gemini-key"
   GOOGLE_DRIVE_FOLDER_ID: "optional-folder-id"
   GOOGLE_DRIVE_OUTPUT_FOLDER_ID: "required-output-folder-id"
@@ -128,6 +127,8 @@ env_variables:
   GOOGLE_ALLOWED_DOMAIN: ""
   PORT: "8080"
 ```
+
+Firestore collection name is fixed to `driveFiles`; no environment variable is required.
 
 For secrets, load values at deploy time instead of storing them in `app.yaml`:
 

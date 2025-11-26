@@ -33,7 +33,8 @@ pnpm run format
 Create a `.env` file based on `.env.example`. Required variables:
 - `GOOGLE_DRIVE_FOLDER_ID`: Target Drive folder containing transcripts
 - `GOOGLE_GENERATIVE_AI_API_KEY`: API key for Gemini
-- `FIRESTORE_COLLECTION`: Firestore collection name
+
+Firestore collection is fixed to `driveFiles`; no env is needed.
 
 See `README.md` for optional variables.
 

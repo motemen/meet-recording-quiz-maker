@@ -8,13 +8,12 @@ App Engine service that turns Google Meet recordings (Docs transcripts in a Driv
 - Drive client: lists files in configured folder (if `GOOGLE_DRIVE_FOLDER_ID` is set), fetches metadata, exports Docs to text.
 - Gemini client: generates quiz JSON from transcript using Vercel AI SDK (`generateObject`) with schema validation.
 - Forms client: creates a quiz-form (radio MCQ) and returns `formId`/`formUrl`.
-- Firestore: collection stores `fileId`, `status`, `modifiedTime`, `title`, `formId`, `formUrl`, `geminiSummary`, `questionCount`, timestamps, and `error`.
+- Firestore: collection (`driveFiles`) stores `fileId`, `status`, `modifiedTime`, `title`, `formId`, `formUrl`, `geminiSummary`, `questionCount`, timestamps, and `error`.
 
 ## Environment
 
 Required env vars:
 
-- `FIRESTORE_COLLECTION`: Firestore collection name.
 - `SERVICE_ACCOUNT_EMAIL`: service account email used for Drive/Docs/Forms impersonation.
 - `GOOGLE_DRIVE_OUTPUT_FOLDER_ID`: output Drive folder where created forms will be placed. Supports shared drives.
 - One of:
@@ -29,6 +28,8 @@ Optional:
 - `QUIZ_ADDITIONAL_PROMPT`: extra instructions appended to the Gemini prompt (e.g. `Use Japanese`).
 - `GOOGLE_ALLOWED_DOMAIN`: optional domain check for owners.
 - `PORT`: server port (default: `8080`).
+
+Firestore collection name is fixed to `driveFiles`; no environment variable is needed.
 
 Permissions (service account used by App Engine):
 

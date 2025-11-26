@@ -7,13 +7,16 @@ const configSchema = z.object({
   googleAllowedDomain: z.string().optional(),
   geminiModel: z.string().default("gemini-2.5-flash"),
   quizAdditionalPrompt: z.string().optional(),
-  firestoreCollection: z.string().min(1, "FIRESTORE_COLLECTION is required"),
   gcloudProject: z.string().optional(),
   googleGenerativeAiApiKeySecret: z.string().optional(),
   serviceAccountEmail: z.string().min(1, "SERVICE_ACCOUNT_EMAIL is required"),
 });
 
-export type AppConfig = z.infer<typeof configSchema>;
+export type AppConfig = z.infer<typeof configSchema> & {
+  firestoreCollection: typeof FIRESTORE_COLLECTION;
+};
+
+export const FIRESTORE_COLLECTION = "driveFiles";
 
 export function loadConfig(env = process.env): AppConfig {
   const parsed = configSchema.safeParse({
@@ -23,7 +26,6 @@ export function loadConfig(env = process.env): AppConfig {
     googleAllowedDomain: env.GOOGLE_ALLOWED_DOMAIN,
     geminiModel: env.GEMINI_MODEL,
     quizAdditionalPrompt: env.QUIZ_ADDITIONAL_PROMPT,
-    firestoreCollection: env.FIRESTORE_COLLECTION,
     gcloudProject: env.GCLOUD_PROJECT,
     googleGenerativeAiApiKeySecret: env.GOOGLE_GENERATIVE_AI_API_KEY_SECRET,
     serviceAccountEmail: env.SERVICE_ACCOUNT_EMAIL,
@@ -37,5 +39,5 @@ export function loadConfig(env = process.env): AppConfig {
     );
   }
 
-  return parsed.data;
+  return { ...parsed.data, firestoreCollection: FIRESTORE_COLLECTION };
 }
