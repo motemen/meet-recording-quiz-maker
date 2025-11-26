@@ -1,10 +1,10 @@
 # Meet Recording Quiz Maker
 
-Cloud Run service that turns Google Meet recordings (Docs transcripts in a Drive folder) into Google Forms quizzes using Gemini, with state tracked in Firestore.
+App Engine service that turns Google Meet recordings (Docs transcripts in a Drive folder) into Google Forms quizzes using Gemini, with state tracked in Firestore.
 
 ## Architecture
 
-- Cloud Run service (Express) with routes for scanning (`/tasks/scan`), per-file processing (`/tasks/process`), manual submission (`/manual`), status lookup (`/files/:fileId`), and a minimal UI (`/`).
+- App Engine service (Express) with routes for scanning (`/tasks/scan`), per-file processing (`/tasks/process`), manual submission (`/manual`), status lookup (`/files/:fileId`), and a minimal UI (`/`).
 - Drive client: lists files in configured folder (if `GOOGLE_DRIVE_FOLDER_ID` is set), fetches metadata, exports Docs to text.
 - Gemini client: generates quiz JSON from transcript using Vercel AI SDK (`generateObject`) with schema validation.
 - Forms client: creates a quiz-form (radio MCQ) and returns `formId`/`formUrl`.
@@ -30,7 +30,7 @@ Optional:
 - `GOOGLE_ALLOWED_DOMAIN`: optional domain check for owners.
 - `PORT`: server port (default: `8080`).
 
-Permissions (service account on Cloud Run):
+Permissions (service account used by App Engine):
 
 - Drive read-only for the folder (scanning).
 - Drive file scope (to move created forms to output folder).
@@ -56,11 +56,11 @@ Create a `.env` (see `.env.example`) to supply secrets/IDs; they are loaded via 
 
 ## Deployment
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on deploying to Google Cloud Run and setting up Cloud Scheduler.
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on deploying to App Engine and setting up App Engine Cron.
 
 ## Next steps
 
 - Run with real creds (`pnpm run dev`) and test `/tasks/process` on a sample Doc.
-- Configure Cloud Scheduler → `/tasks/scan` on Cloud Run.
+- Configure App Engine Cron (`cron.yaml`) → `/tasks/scan`.
 - Decide UI auth (basic auth or IAP) and whether to write Drive file properties (processed/formUrl).
 - Add retries/backoff and monitoring once basic flow is verified.
