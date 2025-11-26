@@ -6,5 +6,6 @@ export default defineConfig({
   plugins: [ssrComponents(), react()],
   build: {
     manifest: true,
+    outDir: "dist/client",
   },
 });
