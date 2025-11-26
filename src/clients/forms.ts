@@ -33,31 +33,6 @@ export class FormsClient {
     this.outputFolderId = options.outputFolderId;
   }
 
-  async createBlankForm(title: string): Promise<CreateFormResult> {
-    const forms = await this.formsPromise;
-    const createRes = await forms.forms.create({
-      requestBody: {
-        info: {
-          title,
-          documentTitle: title,
-        },
-      },
-    });
-
-    const formId = createRes.data.formId;
-    if (!formId) {
-      throw new Error("Failed to create Google Form");
-    }
-
-    const { data: form } = await forms.forms.get({ formId });
-    const formUrl = form.responderUri ?? "";
-
-    await this.moveFormToOutputFolder(formId);
-    await this.publishForm(formId);
-
-    return { formId, formUrl };
-  }
-
   async createQuizForm(quiz: QuizPayload): Promise<CreateFormResult> {
     // Service accounts cannot create the form in their own drive space, so create
     // the shell file directly in the shared output folder via Drive first.
