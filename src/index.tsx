@@ -1,7 +1,7 @@
 import "dotenv/config";
 import { serve } from "@hono/node-server";
 import { Hono } from "hono";
-import type { FC } from "hono/jsx";
+import type { FC, JSX } from "hono/jsx";
 import { jsxRenderer } from "hono/jsx-renderer";
 import { DriveClient } from "./clients/drive.js";
 import { FormsClient } from "./clients/forms.js";
@@ -14,7 +14,7 @@ import { ProcessingService } from "./services/processing.js";
 import { extractFileIdFromUrl } from "./utils/drive.js";
 import { accessSecretPayload } from "./utils/secretManager.js";
 
-const CopyIcon: FC<{ className?: string }> = ({ className }) => (
+const CopyIcon: FC<JSX.HTMLAttributes> = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
@@ -23,16 +23,16 @@ const CopyIcon: FC<{ className?: string }> = ({ className }) => (
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
-    className={className}
     aria-hidden="true"
     focusable="false"
+    {...props}
   >
     <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h8" />
   </svg>
 );
 
-const CheckIcon: FC<{ className?: string }> = ({ className }) => (
+const CheckIcon: FC<JSX.HTMLAttributes> = (props) => (
   <svg
     xmlns="http://www.w3.org/2000/svg"
     viewBox="0 0 24 24"
@@ -41,9 +41,9 @@ const CheckIcon: FC<{ className?: string }> = ({ className }) => (
     strokeWidth="2"
     strokeLinecap="round"
     strokeLinejoin="round"
-    className={className}
     aria-hidden="true"
     focusable="false"
+    {...props}
   >
     <path d="M20 6 9 17l-5-5" />
   </svg>
@@ -56,6 +56,11 @@ const Layout = jsxRenderer(({ children }) => (
       <meta name="viewport" content="width=device-width, initial-scale=1" />
       <title>Meet Recording Quiz Maker</title>
       <script src="https://cdn.tailwindcss.com" />
+      <style>{`
+        .icon-fade {
+          transition: opacity 200ms ease;
+        }
+      `}</style>
     </head>
     <body className="min-h-screen bg-slate-50 text-slate-900">
       <main className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-10 md:px-6">{children}</main>
@@ -80,13 +85,17 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
     const checkIcon = copyBtn?.querySelector('[data-icon="check"]');
 
     const showCopyIcon = () => {
-      copyIcon?.classList.remove('hidden');
-      checkIcon?.classList.add('hidden');
+      copyIcon?.classList.remove('opacity-0');
+      copyIcon?.classList.add('opacity-100');
+      checkIcon?.classList.remove('opacity-100');
+      checkIcon?.classList.add('opacity-0');
     };
 
     const showCheckIconTemporarily = () => {
-      copyIcon?.classList.add('hidden');
-      checkIcon?.classList.remove('hidden');
+      copyIcon?.classList.remove('opacity-100');
+      copyIcon?.classList.add('opacity-0');
+      checkIcon?.classList.remove('opacity-0');
+      checkIcon?.classList.add('opacity-100');
       if (copyResetTimer) clearTimeout(copyResetTimer);
       copyResetTimer = setTimeout(showCopyIcon, 2000);
     };
@@ -185,8 +194,20 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
               className="inline-flex items-center justify-center rounded-md border border-slate-300 p-1 text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               aria-label="Copy service account email"
             >
-              <CopyIcon className="h-4 w-4" data-icon="copy" />
-              <CheckIcon className="h-4 w-4 hidden text-emerald-600" data-icon="check" />
+              <span className="relative inline-flex h-4 w-4 items-center justify-center">
+                <CopyIcon
+                  className="icon-fade absolute inset-0 h-4 w-4 opacity-100"
+                  data-icon="copy"
+                  aria-hidden="true"
+                  focusable="false"
+                />
+                <CheckIcon
+                  className="icon-fade absolute inset-0 h-4 w-4 opacity-0 text-emerald-600"
+                  data-icon="check"
+                  aria-hidden="true"
+                  focusable="false"
+                />
+              </span>
             </button>
           </span>{" "}
           to create a quiz.
