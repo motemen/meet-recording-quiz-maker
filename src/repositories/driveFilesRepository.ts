@@ -1,17 +1,17 @@
 import { Firestore } from "@google-cloud/firestore";
 import type { DriveFile, ProcessingStatus } from "../types";
 
+const COLLECTION_NAME = "driveFiles";
+
 export class DriveFilesRepository {
-  private collectionName: string;
   private firestore: Firestore;
 
-  constructor(options: { firestore?: Firestore; collectionName: string }) {
-    this.collectionName = options.collectionName;
+  constructor(options: { firestore?: Firestore } = {}) {
     this.firestore = options.firestore ?? new Firestore();
   }
 
   private collection() {
-    return this.firestore.collection(this.collectionName);
+    return this.firestore.collection(COLLECTION_NAME);
   }
 
   async get(fileId: string): Promise<DriveFile | undefined> {

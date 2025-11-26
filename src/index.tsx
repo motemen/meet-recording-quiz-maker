@@ -213,7 +213,7 @@ async function bootstrap() {
 
   app.use("/*", Layout);
 
-  const repo = new DriveFilesRepository({ collectionName: config.firestoreCollection });
+  const repo = new DriveFilesRepository();
   const driveClient = new DriveClient({ serviceAccountEmail: config.serviceAccountEmail });
   const formsClient = new FormsClient({
     driveClient,

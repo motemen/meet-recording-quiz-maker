@@ -12,11 +12,7 @@ const configSchema = z.object({
   serviceAccountEmail: z.string().min(1, "SERVICE_ACCOUNT_EMAIL is required"),
 });
 
-export type AppConfig = z.infer<typeof configSchema> & {
-  firestoreCollection: typeof FIRESTORE_COLLECTION;
-};
-
-export const FIRESTORE_COLLECTION = "driveFiles";
+export type AppConfig = z.infer<typeof configSchema>;
 
 export function loadConfig(env = process.env): AppConfig {
   const parsed = configSchema.safeParse({
@@ -39,5 +35,5 @@ export function loadConfig(env = process.env): AppConfig {
     );
   }
 
-  return { ...parsed.data, firestoreCollection: FIRESTORE_COLLECTION };
+  return parsed.data;
 }
