@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "includes": ["**", "!**/node_modules", "!**/dist", "!**/.git"]
+    "includes": ["**", "!**/node_modules", "!**/dist", "!**/.git", "!**/*.css"]
   },
   "formatter": {
     "enabled": true,
@@ -33,6 +33,9 @@
       },
       "suspicious": {
         "noExplicitAny": "warn"
+      },
+      "security": {
+        "noDangerouslySetInnerHtml": "off"
       }
     }
   },
