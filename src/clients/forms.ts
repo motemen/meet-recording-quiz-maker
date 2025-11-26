@@ -53,6 +53,7 @@ export class FormsClient {
     const formUrl = form.responderUri ?? "";
 
     await this.moveFormToOutputFolder(formId);
+    await this.publishForm(formId);
 
     return { formId, formUrl };
   }
@@ -133,6 +134,8 @@ export class FormsClient {
     const { data: form } = await forms.forms.get({ formId });
     const formUrl = form.responderUri ?? "";
 
+    await this.publishForm(formId);
+
     return {
       formId,
       formUrl,
@@ -174,5 +177,22 @@ export class FormsClient {
       });
       // Don't fail the entire operation if moving fails
     }
+  }
+
+  private async publishForm(formId: string): Promise<void> {
+    const forms = await this.formsPromise;
+
+    await forms.forms.setPublishSettings({
+      formId,
+      requestBody: {
+        publishSettings: {
+          publishState: {
+            isPublished: true,
+            isAcceptingResponses: true,
+          },
+        },
+        updateMask: "publish_state",
+      },
+    });
   }
 }
