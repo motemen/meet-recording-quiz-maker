@@ -1,8 +1,11 @@
 import "dotenv/config";
-import { serve } from "@hono/node-server";
+import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { createReadStream } from "node:fs";
+import { readFile, stat } from "node:fs/promises";
+import { dirname, resolve } from "node:path";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { createServer as createViteServer, type ViteDevServer } from "vite";
 import { Hono } from "hono";
-import type { FC } from "hono/jsx";
-import { jsxRenderer } from "hono/jsx-renderer";
 import { DriveClient } from "./clients/drive.js";
 import { FormsClient } from "./clients/forms.js";
 import { GeminiClient } from "./clients/gemini.js";
@@ -13,175 +16,11 @@ import { DriveFilesRepository } from "./repositories/driveFilesRepository.js";
 import { ProcessingService } from "./services/processing.js";
 import { extractFileIdFromUrl } from "./utils/drive.js";
 import { accessSecretPayload } from "./utils/secretManager.js";
+import type { AppState } from "./ssr/types.js";
 
-const CopyIcon: FC<{ className?: string }> = ({ className }) => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    viewBox="0 0 24 24"
-    fill="none"
-    stroke="currentColor"
-    strokeWidth="2"
-    strokeLinecap="round"
-    strokeLinejoin="round"
-    className={className}
-    aria-hidden="true"
-    focusable="false"
-  >
-    <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
-    <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h8" />
-  </svg>
-);
-
-const Layout = jsxRenderer(({ children }) => (
-  <html lang="en">
-    <head>
-      <meta charSet="utf-8" />
-      <meta name="viewport" content="width=device-width, initial-scale=1" />
-      <title>Meet Recording Quiz Maker</title>
-      <script src="https://cdn.tailwindcss.com" />
-    </head>
-    <body className="min-h-screen bg-slate-50 text-slate-900">
-      <main className="mx-auto flex max-w-4xl flex-col gap-8 px-4 py-10 md:px-6">{children}</main>
-    </body>
-  </html>
-));
-
-type HomePageProps = {
-  serviceAccountEmail: string;
-};
-
-const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
-  const submissionScript = `(() => {
-    const form = document.getElementById('manual-form');
-    const statusEl = document.getElementById('status');
-    const copyBtn = document.getElementById('copy-email');
-    if (!form || !statusEl) return;
-
-    let pollTimer;
-
-    copyBtn?.addEventListener('click', async () => {
-      try {
-        const email = copyBtn.dataset.email || '';
-        await navigator.clipboard.writeText(email);
-      } catch (error) {
-        console.error('copy failed', error);
-      }
-    });
-
-    const renderStatus = (record) => {
-      if (!record) return;
-      let text = 'Status: ' + record.status;
-      if (record.title) text += '\\nTitle: ' + record.title;
-      if (record.formUrl) text += '\\nForm URL: ' + record.formUrl;
-      if (record.progress) {
-        const { step, message, percent } = record.progress;
-        const percentText = typeof percent === 'number' ? percent + '% ' : '';
-        text += '\\nProgress: ' + percentText + step + (message ? ' (' + message + ')' : '');
-      }
-      if (record.error) text += '\\nError: ' + record.error;
-      statusEl.textContent = text;
-    };
-
-    const startPolling = (fileId) => {
-      const poll = async () => {
-        try {
-          const resp = await fetch('/files/' + fileId);
-          if (!resp.ok) throw new Error('Failed to fetch status');
-          const data = await resp.json();
-          renderStatus(data);
-          if (data.status === 'succeeded' || data.status === 'failed') return;
-          pollTimer = setTimeout(poll, 2000);
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          statusEl.textContent = 'Status check error: ' + message;
-        }
-      };
-      poll();
-    };
-
-    form.addEventListener('submit', async (event) => {
-      event.preventDefault();
-
-      const driveUrlInput = form.querySelector('[name="driveUrl"]');
-      const submitBtn = form.querySelector('button[type="submit"]');
-      const driveUrl = driveUrlInput?.value?.trim();
-      const force = true;
-
-      if (!driveUrl) {
-        statusEl.textContent = 'Please enter a Drive URL.';
-        return;
-      }
-
-      if (pollTimer) clearTimeout(pollTimer);
-      statusEl.textContent = 'Submitting...';
-      if (submitBtn) submitBtn.disabled = true;
-      try {
-        const resp = await fetch('/process', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ driveUrl, force })
-        });
-        const data = await resp.json();
-        if (!resp.ok) throw new Error(data.error || 'Request failed');
-        renderStatus(data);
-        if (data.fileId) startPolling(data.fileId);
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        statusEl.textContent = 'Error: ' + message;
-      } finally {
-        if (submitBtn) submitBtn.disabled = false;
-      }
-    });
-  })();`;
-
-  return (
-    <>
-      <header className="space-y-4">
-        <h1 className="text-3xl font-bold leading-tight text-slate-900">
-          Meet Recording Quiz Maker
-        </h1>
-        <p className="text-base text-slate-700">
-          Share the document with{" "}
-          <span className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-2 py-1 text-slate-900 transition hover:bg-slate-200 focus-within:bg-slate-200">
-            <span className="font-mono">{serviceAccountEmail}</span>
-            <button
-              id="copy-email"
-              type="button"
-              data-email={serviceAccountEmail}
-              className="inline-flex items-center justify-center rounded-md border border-slate-300 p-1 text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              aria-label="Copy service account email"
-            >
-              <CopyIcon className="h-4 w-4" />
-            </button>
-          </span>{" "}
-          to create a quiz.
-        </p>
-      </header>
-
-      <form id="manual-form" className="space-y-4">
-        <div>
-          <input
-            name="driveUrl"
-            type="url"
-            required
-            placeholder="https://docs.google.com/document/d/..."
-            className="w-full rounded-lg border border-slate-300 px-3 py-2 text-base shadow-sm outline-none transition focus:border-indigo-500 focus:ring-2 focus:ring-indigo-200"
-          />
-        </div>
-
-        <button
-          type="submit"
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-        >
-          Create quiz
-        </button>
-      </form>
-
-      <pre id="status" className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800" />
-
-      <script dangerouslySetInnerHTML={{ __html: submissionScript }} />
-    </>
-  );
+type RenderContext = {
+  renderPage: (url: string, state: AppState) => Promise<string>;
+  devServer?: ViteDevServer;
 };
 
 async function readJsonBody<T>(request: Request): Promise<T | undefined> {
@@ -206,32 +45,71 @@ async function ensureGeminiApiKey(config: AppConfig) {
   });
 }
 
-async function bootstrap() {
-  const config = loadConfig();
-  await ensureGeminiApiKey(config);
+function isApiRoute(pathname: string) {
+  return (
+    pathname === "/healthz" ||
+    pathname.startsWith("/tasks/scan") ||
+    pathname.startsWith("/tasks/process") ||
+    pathname.startsWith("/process") ||
+    pathname.startsWith("/files/")
+  );
+}
+
+function getContentType(filePath: string) {
+  if (filePath.endsWith(".js")) return "application/javascript";
+  if (filePath.endsWith(".css")) return "text/css";
+  if (filePath.endsWith(".svg")) return "image/svg+xml";
+  if (filePath.endsWith(".json")) return "application/json";
+  if (filePath.endsWith(".png")) return "image/png";
+  if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg")) return "image/jpeg";
+  if (filePath.endsWith(".ico")) return "image/x-icon";
+  return "application/octet-stream";
+}
+
+async function nodeRequestToFetchRequest(req: IncomingMessage, url: URL) {
+  const headers = new Headers();
+  for (const [key, value] of Object.entries(req.headers)) {
+    if (!value) continue;
+    if (Array.isArray(value)) {
+      value.forEach((item) => headers.append(key, item));
+    } else {
+      headers.set(key, value);
+    }
+  }
+
+  const method = req.method || "GET";
+  if (method === "GET" || method === "HEAD") {
+    return new Request(url, { method, headers });
+  }
+
+  const chunks: Uint8Array[] = [];
+  await new Promise<void>((resolvePromise, rejectPromise) => {
+    req
+      .on("data", (chunk) => chunks.push(chunk))
+      .on("end", () => resolvePromise())
+      .on("error", (error) => rejectPromise(error));
+  });
+
+  return new Request(url, { method, headers, body: Buffer.concat(chunks) });
+}
+
+async function sendResponse(res: ServerResponse, response: Response) {
+  res.statusCode = response.status;
+  for (const [key, value] of response.headers.entries()) {
+    res.setHeader(key, value);
+  }
+  if (!response.body) {
+    res.end();
+    return;
+  }
+  const buffer = Buffer.from(await response.arrayBuffer());
+  res.end(buffer);
+}
+
+function createApiApp(service: ProcessingService, config: AppConfig) {
   const app = new Hono();
 
-  app.use("/*", Layout);
-
-  const repo = new DriveFilesRepository();
-  const driveClient = new DriveClient({ serviceAccountEmail: config.serviceAccountEmail });
-  const formsClient = new FormsClient({
-    driveClient,
-    outputFolderId: config.googleDriveOutputFolderId,
-    serviceAccountEmail: config.serviceAccountEmail,
-  });
-  const geminiClient = new GeminiClient({ modelName: config.geminiModel });
-  const service = new ProcessingService({
-    config,
-    repo,
-    driveClient,
-    formsClient,
-    geminiClient,
-  });
-
-  app.get("/healthz", (c) => {
-    return c.json({ ok: true });
-  });
+  app.get("/healthz", (c) => c.json({ ok: true }));
 
   app.post("/tasks/scan", async (c) => {
     logger.info("http_scan_requested");
@@ -341,18 +219,162 @@ async function bootstrap() {
     return c.json(record);
   });
 
-  app.get("/", (c) => c.render(<HomePage serviceAccountEmail={config.serviceAccountEmail} />));
+  return app;
+}
+
+function escapeState(state: AppState) {
+  return JSON.stringify(state).replace(/</g, "\\u003c");
+}
+
+async function createRenderer(
+  isProd: boolean,
+  templatePath: string,
+  clientDistPath: string,
+): Promise<RenderContext> {
+  if (!isProd) {
+    const vite = await createViteServer({
+      server: { middlewareMode: true },
+      appType: "custom",
+    });
+    return {
+      devServer: vite,
+      renderPage: async (url, state) => {
+        let template = await readFile(templatePath, "utf-8");
+        template = await vite.transformIndexHtml(url, template);
+        const { render } = await vite.ssrLoadModule("/src/entry-server.tsx");
+        const { html, head } = await render(url, state);
+        return template
+          .replace("<!--app-html-->", html)
+          .replace("<!--app-head-->", head ?? "")
+          .replace("__INITIAL_STATE__", escapeState(state));
+      },
+    };
+  }
+
+  const serverEntryPath = pathToFileURL(resolve(clientDistPath, "../server/entry-server.js")).href;
+  const { render } = await import(serverEntryPath);
+  const template = await readFile(resolve(clientDistPath, "index.html"), "utf-8");
+  return {
+    renderPage: async (url, state) => {
+      const { html, head } = await render(url, state);
+      return template
+        .replace("<!--app-html-->", html)
+        .replace("<!--app-head-->", head ?? "")
+        .replace("__INITIAL_STATE__", escapeState(state));
+    },
+  };
+}
+
+async function tryServeStatic(clientDistPath: string, url: URL, res: ServerResponse) {
+  if (
+    !url.pathname.startsWith("/assets/") &&
+    url.pathname !== "/favicon.ico" &&
+    url.pathname !== "/favicon.svg"
+  ) {
+    return false;
+  }
+
+  const relativePath = url.pathname.startsWith("/") ? url.pathname.slice(1) : url.pathname;
+  const filePath = resolve(clientDistPath, relativePath);
+  if (!filePath.startsWith(clientDistPath)) return false;
+
+  try {
+    const fileStat = await stat(filePath);
+    if (!fileStat.isFile()) return false;
+    res.statusCode = 200;
+    res.setHeader("Content-Type", getContentType(filePath));
+    await new Promise<void>((resolvePromise) => {
+      createReadStream(filePath)
+        .on("end", () => resolvePromise())
+        .pipe(res);
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+async function bootstrap() {
+  const config = loadConfig();
+  await ensureGeminiApiKey(config);
+
+  const repo = new DriveFilesRepository();
+  const driveClient = new DriveClient({ serviceAccountEmail: config.serviceAccountEmail });
+  const formsClient = new FormsClient({
+    driveClient,
+    outputFolderId: config.googleDriveOutputFolderId,
+    serviceAccountEmail: config.serviceAccountEmail,
+  });
+  const geminiClient = new GeminiClient({ modelName: config.geminiModel });
+  const service = new ProcessingService({
+    config,
+    repo,
+    driveClient,
+    formsClient,
+    geminiClient,
+  });
+
+  const apiApp = createApiApp(service, config);
+
+  const isProd = process.env.NODE_ENV === "production";
+  const rootDir = dirname(fileURLToPath(import.meta.url));
+  const templatePath = resolve(rootDir, "../index.html");
+  const clientDistPath = resolve(rootDir, "../dist/client");
+  const renderer = await createRenderer(isProd, templatePath, clientDistPath);
+
+  const server = createServer(async (req, res) => {
+    const url = new URL(req.url || "/", `http://${req.headers.host}`);
+
+    if (isApiRoute(url.pathname)) {
+      try {
+        const request = await nodeRequestToFetchRequest(req, url);
+        const response = await apiApp.fetch(request);
+        await sendResponse(res, response);
+      } catch (error) {
+        logger.error("api_request_failed", { error });
+        res.statusCode = 500;
+        res.end("Internal Server Error");
+      }
+      return;
+    }
+
+    if (isProd && (await tryServeStatic(clientDistPath, url, res))) {
+      return;
+    }
+
+    try {
+      const state: AppState = { serviceAccountEmail: config.serviceAccountEmail };
+      if (!isProd && renderer.devServer) {
+        renderer.devServer.middlewares(req, res, async () => {
+          try {
+            const html = await renderer.renderPage(url.pathname, state);
+            res.statusCode = 200;
+            res.setHeader("Content-Type", "text/html");
+            res.end(html);
+          } catch (error) {
+            logger.error("ssr_render_failed", { error });
+            res.statusCode = 500;
+            res.end("SSR render failed");
+          }
+        });
+        return;
+      }
+
+      const html = await renderer.renderPage(url.pathname, state);
+      res.statusCode = 200;
+      res.setHeader("Content-Type", "text/html");
+      res.end(html);
+    } catch (error) {
+      logger.error("render_failed", { error });
+      res.statusCode = 500;
+      res.end("Internal Server Error");
+    }
+  });
 
   const port = config.port;
-  serve(
-    {
-      fetch: app.fetch,
-      port,
-    },
-    () => {
-      logger.info("server_started", { port });
-    },
-  );
+  server.listen(port, () => {
+    logger.info("server_started", { port, mode: isProd ? "production" : "development" });
+  });
 }
 
 bootstrap().catch((error) => {
