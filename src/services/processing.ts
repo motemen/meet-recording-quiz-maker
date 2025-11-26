@@ -3,12 +3,12 @@ import type { FormsClient } from "../clients/forms";
 import type { GeminiClient } from "../clients/gemini";
 import type { AppConfig } from "../config";
 import { logger } from "../logger.js";
-import type { MeetingFilesRepository } from "../repositories/meetingFilesRepository";
-import type { MeetingFile, ProcessingProgress, ProcessingStep, QuizPayload } from "../types";
+import type { DriveFilesRepository } from "../repositories/driveFilesRepository";
+import type { DriveFile, ProcessingProgress, ProcessingStep, QuizPayload } from "../types";
 
 export interface ProcessingServiceDeps {
   config: AppConfig;
-  repo: MeetingFilesRepository;
+  repo: DriveFilesRepository;
   driveClient: DriveClient;
   formsClient: FormsClient;
   geminiClient: GeminiClient;
@@ -16,7 +16,7 @@ export interface ProcessingServiceDeps {
 
 export class ProcessingService {
   private config: AppConfig;
-  private repo: MeetingFilesRepository;
+  private repo: DriveFilesRepository;
   private drive: DriveClient;
   private forms: FormsClient;
   private gemini: GeminiClient;
@@ -70,7 +70,7 @@ export class ProcessingService {
     fileId: string;
     force?: boolean;
     questionCount?: number;
-  }): Promise<MeetingFile> {
+  }): Promise<DriveFile> {
     const { fileId, force = false, questionCount = 10 } = input;
     const existing = await this.repo.get(fileId);
     if (existing && existing.status === "succeeded" && !force) {
@@ -103,7 +103,7 @@ export class ProcessingService {
     force?: boolean;
     metadata?: DriveFileMetadata;
     questionCount?: number;
-  }): Promise<MeetingFile> {
+  }): Promise<DriveFile> {
     const { fileId, force = false, metadata, questionCount = 10 } = input;
     logger.info("process_file_start", {
       fileId,
@@ -187,11 +187,11 @@ export class ProcessingService {
     }
   }
 
-  async getStatus(fileId: string): Promise<MeetingFile | undefined> {
+  async getStatus(fileId: string): Promise<DriveFile | undefined> {
     return this.repo.get(fileId);
   }
 
-  private hasMetadataChanged(existing: MeetingFile, meta: DriveFileMetadata): boolean {
+  private hasMetadataChanged(existing: DriveFile, meta: DriveFileMetadata): boolean {
     if (!existing.modifiedTime || !meta.modifiedTime) return false;
     return existing.modifiedTime !== meta.modifiedTime;
   }

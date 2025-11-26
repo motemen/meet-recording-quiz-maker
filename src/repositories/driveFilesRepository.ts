@@ -1,7 +1,7 @@
 import { Firestore } from "@google-cloud/firestore";
-import type { MeetingFile, ProcessingStatus } from "../types";
+import type { DriveFile, ProcessingStatus } from "../types";
 
-export class MeetingFilesRepository {
+export class DriveFilesRepository {
   private collectionName: string;
   private firestore: Firestore;
 
@@ -14,21 +14,21 @@ export class MeetingFilesRepository {
     return this.firestore.collection(this.collectionName);
   }
 
-  async get(fileId: string): Promise<MeetingFile | undefined> {
+  async get(fileId: string): Promise<DriveFile | undefined> {
     const doc = await this.collection().doc(fileId).get();
     if (!doc.exists) return undefined;
-    return doc.data() as MeetingFile;
+    return doc.data() as DriveFile;
   }
 
-  async listRecent(limit = 20): Promise<MeetingFile[]> {
+  async listRecent(limit = 20): Promise<DriveFile[]> {
     const snapshot = await this.collection().orderBy("updatedAt", "desc").limit(limit).get();
-    return snapshot.docs.map((doc) => doc.data() as MeetingFile);
+    return snapshot.docs.map((doc) => doc.data() as DriveFile);
   }
 
   async setStatus(
     fileId: string,
     status: ProcessingStatus,
-    payload: Partial<MeetingFile> = {},
+    payload: Partial<DriveFile> = {},
   ): Promise<void> {
     const now = new Date().toISOString();
     await this.collection()

@@ -9,7 +9,7 @@ import { GeminiClient } from "./clients/gemini.js";
 import type { AppConfig } from "./config.js";
 import { loadConfig } from "./config.js";
 import { logger } from "./logger.js";
-import { MeetingFilesRepository } from "./repositories/meetingFilesRepository.js";
+import { DriveFilesRepository } from "./repositories/driveFilesRepository.js";
 import { ProcessingService } from "./services/processing.js";
 import { extractFileIdFromUrl } from "./utils/drive.js";
 import { accessSecretPayload } from "./utils/secretManager.js";
@@ -213,7 +213,7 @@ async function bootstrap() {
 
   app.use("/*", Layout);
 
-  const repo = new MeetingFilesRepository({ collectionName: config.firestoreCollection });
+  const repo = new DriveFilesRepository({ collectionName: config.firestoreCollection });
   const driveClient = new DriveClient({ serviceAccountEmail: config.serviceAccountEmail });
   const formsClient = new FormsClient({
     driveClient,

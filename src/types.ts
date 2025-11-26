@@ -15,7 +15,7 @@ export interface ProcessingProgress {
   percent?: number;
 }
 
-export interface MeetingFile {
+export interface DriveFile {
   fileId: string;
   title?: string;
   status: ProcessingStatus;
