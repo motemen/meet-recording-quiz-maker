@@ -166,6 +166,7 @@ async function bootstrap() {
   });
 
   app.get("/", (c) => {
+    const serviceAccountEmail = config.serviceAccountEmail;
     return c.html(`
 <!doctype html>
 <html lang="en">
@@ -182,6 +183,7 @@ async function bootstrap() {
   <body>
     <h1>Meet Recording Quiz Maker</h1>
     <p>Paste a Google Drive file URL to create a quiz.</p>
+    <p>Share your document with this service account so it can be processed: <code>${serviceAccountEmail}</code></p>
     <input id="driveUrl" type="text" placeholder="https://docs.google.com/document/d/..." />
     <button id="submit">Create quiz</button>
     <div id="status"></div>
