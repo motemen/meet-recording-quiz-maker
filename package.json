@@ -15,8 +15,7 @@
     "lint": "biome check .",
     "lint:fix": "biome check --write .",
     "format": "biome format --write .",
-    "format:check": "biome format .",
-    "gcp-build": ""
+    "format:check": "biome format ."
   },
   "dependencies": {
     "@ai-sdk/google": "^2.0.40",
