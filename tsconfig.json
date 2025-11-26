@@ -5,11 +5,13 @@
     "moduleResolution": "Node",
     "outDir": "dist",
     "rootDir": "src",
+    "jsx": "react-jsx",
+    "jsxImportSource": "hono/jsx",
     "strict": true,
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
     "skipLibCheck": true,
     "resolveJsonModule": true
   },
-  "include": ["src/**/*.ts"]
+  "include": ["src/**/*.ts", "src/**/*.tsx"]
 }
