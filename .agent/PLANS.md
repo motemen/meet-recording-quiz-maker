@@ -7,7 +7,7 @@
 ## Current Decision Set
 - Use pnpm for package management.
 - No Pub/Sub, no Form template.
-- Env naming: `GOOGLE_DRIVE_FOLDER_ID`, `GEMINI_MODEL`, `GOOGLE_GENERATIVE_AI_API_KEY`, `QUIZ_ADDITIONAL_PROMPT`, `GCLOUD_PROJECT`, `PORT`.
+- Env naming: `GOOGLE_DRIVE_FOLDER_ID`, `GEMINI_MODEL`, `GOOGLE_GENERATIVE_AI_API_KEY`, `QUIZ_ADDITIONAL_PROMPT`, `PORT`.
 
 ## Milestones
 1) **Scaffold (done)**: Express app with routes `/tasks/scan`, `/tasks/process`, `/process`, `/files/:fileId`, minimal UI; clients for Drive/Forms/Gemini; Firestore repo; config validation.

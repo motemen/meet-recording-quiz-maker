@@ -6,7 +6,6 @@ const configSchema = z.object({
   googleDriveOutputFolderId: z.string().min(1, "GOOGLE_DRIVE_OUTPUT_FOLDER_ID is required"),
   geminiModel: z.string().default("gemini-2.5-flash"),
   quizAdditionalPrompt: z.string().optional(),
-  gcloudProject: z.string().optional(),
   googleGenerativeAiApiKeySecret: z.string().optional(),
   serviceAccountEmail: z.string().min(1, "SERVICE_ACCOUNT_EMAIL is required"),
 });
@@ -20,7 +19,6 @@ export function loadConfig(env = process.env): AppConfig {
     googleDriveOutputFolderId: env.GOOGLE_DRIVE_OUTPUT_FOLDER_ID,
     geminiModel: env.GEMINI_MODEL,
     quizAdditionalPrompt: env.QUIZ_ADDITIONAL_PROMPT,
-    gcloudProject: env.GCLOUD_PROJECT,
     googleGenerativeAiApiKeySecret: env.GOOGLE_GENERATIVE_AI_API_KEY_SECRET,
     serviceAccountEmail: env.SERVICE_ACCOUNT_EMAIL,
   });
