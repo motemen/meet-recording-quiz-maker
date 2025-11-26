@@ -1,4 +1,4 @@
-import type { AuthClient } from "google-auth-library";
+import type { OAuth2Client } from "google-auth-library";
 import { type forms_v1, google } from "googleapis";
 import { logger } from "../logger.js";
 import type { QuizPayload } from "../types";
@@ -17,7 +17,7 @@ export interface FormsClientOptions {
 }
 
 export class FormsClient {
-  private authPromise: Promise<AuthClient>;
+  private authPromise: Promise<OAuth2Client>;
   private formsPromise: Promise<forms_v1.Forms>;
   private driveClient: DriveClient | null;
   private outputFolderId?: string;
