@@ -1,4 +1,4 @@
-import type { AuthClient } from "google-auth-library";
+import type { OAuth2Client } from "google-auth-library";
 import { type docs_v1, type drive_v3, google } from "googleapis";
 import { logger } from "../logger.js";
 import { createImpersonatedAuthClient } from "../utils/googleAuth.js";
@@ -28,7 +28,7 @@ export interface DriveQuota {
 }
 
 export class DriveClient {
-  private authPromise: Promise<AuthClient>;
+  private authPromise: Promise<OAuth2Client>;
   private drivePromise: Promise<drive_v3.Drive>;
   private docsPromise: Promise<docs_v1.Docs>;
 
@@ -38,7 +38,7 @@ export class DriveClient {
     this.docsPromise = this.authPromise.then((auth) => google.docs({ version: "v1", auth }));
   }
 
-  private createAuthClient(serviceAccountEmail: string): Promise<AuthClient> {
+  private createAuthClient(serviceAccountEmail: string): Promise<OAuth2Client> {
     const scopes = [
       "https://www.googleapis.com/auth/drive.readonly",
       "https://www.googleapis.com/auth/drive.file",
@@ -93,23 +93,29 @@ export class DriveClient {
   }
 
   async getFileMetadata(fileId: string): Promise<DriveFileMetadata> {
-    const drive = await this.drivePromise;
-    const res = await drive.files.get({
-      fileId,
-      fields: "id, name, mimeType, modifiedTime, properties",
-    });
+    logger.debug("drive_get_file_metadata_start", { fileId });
+    try {
+      const drive = await this.drivePromise;
+      const res = await drive.files.get({
+        fileId,
+        fields: "id, name, mimeType, modifiedTime, properties",
+      });
 
-    if (!res.data.id) {
-      throw new Error("Drive file not found");
+      if (!res.data.id) {
+        throw new Error("Drive file not found");
+      }
+
+      return {
+        id: res.data.id,
+        name: res.data.name ?? undefined,
+        mimeType: res.data.mimeType ?? undefined,
+        modifiedTime: res.data.modifiedTime ?? undefined,
+        properties: res.data.properties ?? undefined,
+      };
+    } catch (error) {
+      logger.error("drive_get_file_metadata_failed", { fileId, error });
+      throw error;
     }
-
-    return {
-      id: res.data.id,
-      name: res.data.name ?? undefined,
-      mimeType: res.data.mimeType ?? undefined,
-      modifiedTime: res.data.modifiedTime ?? undefined,
-      properties: res.data.properties ?? undefined,
-    };
   }
 
   async createBlankDocument(title: string): Promise<CreateDocumentResult> {
