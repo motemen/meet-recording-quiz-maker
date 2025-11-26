@@ -1,11 +1,13 @@
 import "dotenv/config";
-import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import { createReadStream } from "node:fs";
-import { readFile, stat } from "node:fs/promises";
+import type { HttpBindings } from "@hono/node-server";
+import { getRequestListener } from "@hono/node-server";
+import { createServer } from "node:http";
+import { readFile } from "node:fs/promises";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { createServer as createViteServer, type ViteDevServer } from "vite";
 import { Hono } from "hono";
+import { serveStatic } from "hono/serve-static.module";
+import { createServer as createViteServer, type ViteDevServer } from "vite";
 import { DriveClient } from "./clients/drive.js";
 import { FormsClient } from "./clients/forms.js";
 import { GeminiClient } from "./clients/gemini.js";
@@ -45,69 +47,8 @@ async function ensureGeminiApiKey(config: AppConfig) {
   });
 }
 
-function isApiRoute(pathname: string) {
-  return (
-    pathname === "/healthz" ||
-    pathname.startsWith("/tasks/scan") ||
-    pathname.startsWith("/tasks/process") ||
-    pathname.startsWith("/process") ||
-    pathname.startsWith("/files/")
-  );
-}
-
-function getContentType(filePath: string) {
-  if (filePath.endsWith(".js")) return "application/javascript";
-  if (filePath.endsWith(".css")) return "text/css";
-  if (filePath.endsWith(".svg")) return "image/svg+xml";
-  if (filePath.endsWith(".json")) return "application/json";
-  if (filePath.endsWith(".png")) return "image/png";
-  if (filePath.endsWith(".jpg") || filePath.endsWith(".jpeg")) return "image/jpeg";
-  if (filePath.endsWith(".ico")) return "image/x-icon";
-  return "application/octet-stream";
-}
-
-async function nodeRequestToFetchRequest(req: IncomingMessage, url: URL) {
-  const headers = new Headers();
-  for (const [key, value] of Object.entries(req.headers)) {
-    if (!value) continue;
-    if (Array.isArray(value)) {
-      value.forEach((item) => headers.append(key, item));
-    } else {
-      headers.set(key, value);
-    }
-  }
-
-  const method = req.method || "GET";
-  if (method === "GET" || method === "HEAD") {
-    return new Request(url, { method, headers });
-  }
-
-  const chunks: Uint8Array[] = [];
-  await new Promise<void>((resolvePromise, rejectPromise) => {
-    req
-      .on("data", (chunk) => chunks.push(chunk))
-      .on("end", () => resolvePromise())
-      .on("error", (error) => rejectPromise(error));
-  });
-
-  return new Request(url, { method, headers, body: Buffer.concat(chunks) });
-}
-
-async function sendResponse(res: ServerResponse, response: Response) {
-  res.statusCode = response.status;
-  for (const [key, value] of response.headers.entries()) {
-    res.setHeader(key, value);
-  }
-  if (!response.body) {
-    res.end();
-    return;
-  }
-  const buffer = Buffer.from(await response.arrayBuffer());
-  res.end(buffer);
-}
-
 function createApiApp(service: ProcessingService, config: AppConfig) {
-  const app = new Hono();
+  const app = new Hono<{ Bindings: HttpBindings }>();
 
   app.get("/healthz", (c) => c.json({ ok: true }));
 
@@ -265,35 +206,6 @@ async function createRenderer(
   };
 }
 
-async function tryServeStatic(clientDistPath: string, url: URL, res: ServerResponse) {
-  if (
-    !url.pathname.startsWith("/assets/") &&
-    url.pathname !== "/favicon.ico" &&
-    url.pathname !== "/favicon.svg"
-  ) {
-    return false;
-  }
-
-  const relativePath = url.pathname.startsWith("/") ? url.pathname.slice(1) : url.pathname;
-  const filePath = resolve(clientDistPath, relativePath);
-  if (!filePath.startsWith(clientDistPath)) return false;
-
-  try {
-    const fileStat = await stat(filePath);
-    if (!fileStat.isFile()) return false;
-    res.statusCode = 200;
-    res.setHeader("Content-Type", getContentType(filePath));
-    await new Promise<void>((resolvePromise) => {
-      createReadStream(filePath)
-        .on("end", () => resolvePromise())
-        .pipe(res);
-    });
-    return true;
-  } catch {
-    return false;
-  }
-}
-
 async function bootstrap() {
   const config = loadConfig();
   await ensureGeminiApiKey(config);
@@ -322,53 +234,42 @@ async function bootstrap() {
   const clientDistPath = resolve(rootDir, "../dist/client");
   const renderer = await createRenderer(isProd, templatePath, clientDistPath);
 
-  const server = createServer(async (req, res) => {
-    const url = new URL(req.url || "/", `http://${req.headers.host}`);
+  const app = new Hono<{ Bindings: HttpBindings }>();
+  app.route("/", apiApp);
 
-    if (isApiRoute(url.pathname)) {
-      try {
-        const request = await nodeRequestToFetchRequest(req, url);
-        const response = await apiApp.fetch(request);
-        await sendResponse(res, response);
-      } catch (error) {
-        logger.error("api_request_failed", { error });
-        res.statusCode = 500;
-        res.end("Internal Server Error");
-      }
-      return;
-    }
+  if (isProd) {
+    app.use("/assets/*", serveStatic({ root: clientDistPath }));
+    app.use("/favicon.ico", serveStatic({ path: resolve(clientDistPath, "favicon.ico") }));
+    app.use("/favicon.svg", serveStatic({ path: resolve(clientDistPath, "favicon.svg") }));
+  }
 
-    if (isProd && (await tryServeStatic(clientDistPath, url, res))) {
-      return;
-    }
+  app.get("*", async (c) => {
+    const state: AppState = { serviceAccountEmail: config.serviceAccountEmail };
+
+    const renderPage = async () => {
+      const html = await renderer.renderPage(c.req.path, state);
+      return c.html(html);
+    };
 
     try {
-      const state: AppState = { serviceAccountEmail: config.serviceAccountEmail };
-      if (!isProd && renderer.devServer) {
-        renderer.devServer.middlewares(req, res, async () => {
-          try {
-            const html = await renderer.renderPage(url.pathname, state);
-            res.statusCode = 200;
-            res.setHeader("Content-Type", "text/html");
-            res.end(html);
-          } catch (error) {
-            logger.error("ssr_render_failed", { error });
-            res.statusCode = 500;
-            res.end("SSR render failed");
-          }
-        });
-        return;
-      }
-
-      const html = await renderer.renderPage(url.pathname, state);
-      res.statusCode = 200;
-      res.setHeader("Content-Type", "text/html");
-      res.end(html);
+      return await renderPage();
     } catch (error) {
       logger.error("render_failed", { error });
-      res.statusCode = 500;
-      res.end("Internal Server Error");
+      return c.text("Internal Server Error", 500);
     }
+  });
+
+  const requestListener = getRequestListener((request, env) => app.fetch(request, env));
+
+  const server = createServer((req, res) => {
+    if (!isProd && renderer.devServer) {
+      renderer.devServer.middlewares(req, res, () => {
+        requestListener(req, res);
+      });
+      return;
+    }
+
+    requestListener(req, res);
   });
 
   const port = config.port;
