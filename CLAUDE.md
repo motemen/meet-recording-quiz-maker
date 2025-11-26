@@ -65,7 +65,8 @@ See `README.md` for optional variables.
 1. **Understand the context**: Read relevant source files before making changes
 2. **Test your changes**: Run `pnpm run dev` and test endpoints
 3. **Lint before committing**: Run `pnpm run lint:fix` to ensure code quality
-4. **Update documentation**: Keep README.md and this file up to date
+4. Always run lint, typecheck, and format before committing.
+5. **Update documentation**: Keep README.md and this file up to date
 
 ### Common Tasks
 
