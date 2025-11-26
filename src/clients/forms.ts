@@ -1,6 +1,8 @@
+import type { OAuth2Client } from "google-auth-library";
 import { type forms_v1, google } from "googleapis";
 import { logger } from "../logger.js";
 import type { QuizPayload } from "../types";
+import { createImpersonatedAuthClient } from "../utils/googleAuth.js";
 import type { DriveClient } from "./drive";
 
 export interface CreateFormResult {
@@ -11,21 +13,22 @@ export interface CreateFormResult {
 export interface FormsClientOptions {
   driveClient?: DriveClient;
   outputFolderId?: string;
+  serviceAccountEmail: string;
 }
 
 export class FormsClient {
-  private forms: forms_v1.Forms;
+  private authPromise: Promise<OAuth2Client>;
+  private formsPromise: Promise<forms_v1.Forms>;
   private driveClient: DriveClient | null;
   private outputFolderId?: string;
 
-  constructor(options: FormsClientOptions = {}) {
-    const auth = new google.auth.GoogleAuth({
-      scopes: [
-        'https://www.googleapis.com/auth/cloud-platform',
-        'https://www.googleapis.com/auth/drive',
-      ],
-    });
-    this.forms = google.forms({ version: "v1", auth });
+  constructor(options: FormsClientOptions) {
+    const scopes = [
+      "https://www.googleapis.com/auth/cloud-platform",
+      "https://www.googleapis.com/auth/drive",
+    ];
+    this.authPromise = createImpersonatedAuthClient(options.serviceAccountEmail, scopes);
+    this.formsPromise = this.authPromise.then((auth) => google.forms({ version: "v1", auth }));
     this.driveClient = options.driveClient ?? null;
     this.outputFolderId = options.outputFolderId;
 
@@ -38,7 +41,8 @@ export class FormsClient {
   }
 
   async createBlankForm(title: string): Promise<CreateFormResult> {
-    const createRes = await this.forms.forms.create({
+    const forms = await this.formsPromise;
+    const createRes = await forms.forms.create({
       requestBody: {
         info: {
           title,
@@ -52,7 +56,7 @@ export class FormsClient {
       throw new Error("Failed to create Google Form");
     }
 
-    const { data: form } = await this.forms.forms.get({ formId });
+    const { data: form } = await forms.forms.get({ formId });
     const formUrl = form.responderUri ?? "";
 
     await this.moveFormToOutputFolder(formId);
@@ -132,12 +136,14 @@ export class FormsClient {
       }),
     ];
 
-    await this.forms.forms.batchUpdate({
+    const forms = await this.formsPromise;
+
+    await forms.forms.batchUpdate({
       formId,
       requestBody: { requests },
     });
 
-    const { data: form } = await this.forms.forms.get({ formId });
+    const { data: form } = await forms.forms.get({ formId });
     const formUrl = form.responderUri ?? "";
 
     return {
@@ -147,7 +153,8 @@ export class FormsClient {
   }
 
   private async clearFormItems(formId: string): Promise<void> {
-    const { data } = await this.forms.forms.get({ formId, fields: "items" });
+    const forms = await this.formsPromise;
+    const { data } = await forms.forms.get({ formId, fields: "items" });
     const items = data.items ?? [];
     if (items.length === 0) return;
 
@@ -159,7 +166,7 @@ export class FormsClient {
       )
       .reverse();
 
-    await this.forms.forms.batchUpdate({
+    await forms.forms.batchUpdate({
       formId,
       requestBody: { requests: deleteRequests },
     });

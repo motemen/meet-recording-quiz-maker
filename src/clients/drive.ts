@@ -1,5 +1,11 @@
+import type { OAuth2Client } from "google-auth-library";
 import { type docs_v1, type drive_v3, google } from "googleapis";
 import { logger } from "../logger.js";
+import { createImpersonatedAuthClient } from "../utils/googleAuth.js";
+
+interface DriveClientOptions {
+  serviceAccountEmail: string;
+}
 
 export interface DriveFileMetadata {
   id: string;
@@ -22,25 +28,28 @@ export interface DriveQuota {
 }
 
 export class DriveClient {
-  private drive: drive_v3.Drive;
-  private docs: docs_v1.Docs;
+  private authPromise: Promise<OAuth2Client>;
+  private drivePromise: Promise<drive_v3.Drive>;
+  private docsPromise: Promise<docs_v1.Docs>;
 
-  constructor() {
-    const auth = new google.auth.GoogleAuth({
-      scopes: [
-        "https://www.googleapis.com/auth/drive.readonly",
-        "https://www.googleapis.com/auth/drive.file",
-        "https://www.googleapis.com/auth/documents",
-      ],
-    });
-    void this.logCaller(auth);
-    this.drive = google.drive({ version: "v3", auth });
-    this.docs = google.docs({ version: "v1", auth });
+  constructor(options: DriveClientOptions) {
+    this.authPromise = this.createAuthClient(options.serviceAccountEmail);
+    this.drivePromise = this.authPromise.then((auth) => google.drive({ version: "v3", auth }));
+    this.docsPromise = this.authPromise.then((auth) => google.docs({ version: "v1", auth }));
   }
 
-  private async logCaller(auth: InstanceType<typeof google.auth.GoogleAuth>): Promise<void> {
+  private createAuthClient(serviceAccountEmail: string): Promise<OAuth2Client> {
+    const scopes = [
+      "https://www.googleapis.com/auth/drive.readonly",
+      "https://www.googleapis.com/auth/drive.file",
+      "https://www.googleapis.com/auth/documents",
+    ];
+    return createImpersonatedAuthClient(serviceAccountEmail, scopes);
+  }
+
+  async logCaller(): Promise<void> {
     try {
-      const client = await auth.getClient();
+      const client = await this.authPromise;
       const token = await client.getAccessToken();
       const tokenValue = typeof token === "string" ? token : (token?.token ?? undefined);
       if (!tokenValue) {
@@ -62,7 +71,8 @@ export class DriveClient {
   }
 
   async listFolderFiles(folderId: string, pageSize = 50): Promise<DriveFileMetadata[]> {
-    const res = await this.drive.files.list({
+    const drive = await this.drivePromise;
+    const res = await drive.files.list({
       q: `'${folderId}' in parents and trashed = false`,
       fields: "files(id, name, mimeType, modifiedTime, properties)",
       orderBy: "modifiedTime desc",
@@ -83,26 +93,35 @@ export class DriveClient {
   }
 
   async getFileMetadata(fileId: string): Promise<DriveFileMetadata> {
-    const res = await this.drive.files.get({
-      fileId,
-      fields: "id, name, mimeType, modifiedTime, properties",
-    });
+    logger.debug("drive_get_file_metadata_start", { fileId });
+    try {
+      const drive = await this.drivePromise;
+      const res = await drive.files.get({
+        fileId,
+        fields: "id, name, mimeType, modifiedTime, properties",
+      });
 
-    if (!res.data.id) {
-      throw new Error("Drive file not found");
+      if (!res.data.id) {
+        throw new Error("Drive file not found");
+      }
+
+      return {
+        id: res.data.id,
+        name: res.data.name ?? undefined,
+        mimeType: res.data.mimeType ?? undefined,
+        modifiedTime: res.data.modifiedTime ?? undefined,
+        properties: res.data.properties ?? undefined,
+      };
+    } catch (error) {
+      logger.error("drive_get_file_metadata_failed", { fileId, error });
+      throw error;
     }
-
-    return {
-      id: res.data.id,
-      name: res.data.name ?? undefined,
-      mimeType: res.data.mimeType ?? undefined,
-      modifiedTime: res.data.modifiedTime ?? undefined,
-      properties: res.data.properties ?? undefined,
-    };
   }
 
   async createBlankDocument(title: string): Promise<CreateDocumentResult> {
-    const res = await this.docs.documents.create({
+    const docs = await this.docsPromise;
+    const drive = await this.drivePromise;
+    const res = await docs.documents.create({
       requestBody: { title },
     });
 
@@ -111,7 +130,7 @@ export class DriveClient {
       throw new Error("Failed to create Google Doc via Docs API");
     }
 
-    const driveRes = await this.drive.files.get({
+    const driveRes = await drive.files.get({
       fileId: documentId,
       fields: "id, webViewLink",
       supportsAllDrives: true,
@@ -128,7 +147,8 @@ export class DriveClient {
     folderId: string,
     mimeType = "application/vnd.google-apps.document",
   ): Promise<CreateDocumentResult> {
-    const res = await this.drive.files.create({
+    const drive = await this.drivePromise;
+    const res = await drive.files.create({
       requestBody: {
         name: title,
         mimeType,
@@ -149,14 +169,16 @@ export class DriveClient {
   }
 
   async getQuota(): Promise<DriveQuota> {
-    const res = await this.drive.about.get({
+    const drive = await this.drivePromise;
+    const res = await drive.about.get({
       fields: "storageQuota(limit,usage,usageInDrive,usageInDriveTrash)",
     });
     return res.data.storageQuota ?? {};
   }
 
   async exportDocumentText(fileId: string): Promise<string> {
-    const res = await this.drive.files.export(
+    const drive = await this.drivePromise;
+    const res = await drive.files.export(
       { fileId, mimeType: "text/plain" },
       { responseType: "arraybuffer" },
     );
@@ -167,15 +189,17 @@ export class DriveClient {
   }
 
   async setFileProperties(fileId: string, properties: Record<string, string>): Promise<void> {
-    await this.drive.files.update({
+    const drive = await this.drivePromise;
+    await drive.files.update({
       fileId,
       requestBody: { properties },
     });
   }
 
   async moveFileToFolder(fileId: string, folderId: string): Promise<void> {
+    const drive = await this.drivePromise;
     // Get current parents
-    const file = await this.drive.files.get({
+    const file = await drive.files.get({
       fileId,
       fields: "parents",
       supportsAllDrives: true,
@@ -184,7 +208,7 @@ export class DriveClient {
     const previousParents = file.data.parents?.join(",") || "";
 
     // Move to new folder by removing from old parents and adding to new parent
-    await this.drive.files.update({
+    await drive.files.update({
       fileId: fileId,
       addParents: folderId,
       removeParents: previousParents,

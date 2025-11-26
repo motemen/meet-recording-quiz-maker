@@ -8,7 +8,6 @@ This guide explains how to deploy the Meet Recording Quiz Maker to **App Engine 
 - `gcloud` CLI installed
 - Required Google APIs enabled:
   - App Engine Admin API
-  - Cloud Scheduler API (for scheduled execution)
   - Google Drive API
   - Google Forms API
   - Cloud Firestore API
@@ -19,7 +18,6 @@ Enable them together:
 ```bash
 gcloud services enable \
   appengine.googleapis.com \
-  cloudscheduler.googleapis.com \
   drive.googleapis.com \
   forms.googleapis.com \
   firestore.googleapis.com \
@@ -47,6 +45,12 @@ export SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gservice
 
 gcloud iam service-accounts create $SERVICE_ACCOUNT_NAME \
   --display-name="Meet Recording Quiz Maker Service Account"
+
+# Allow the runtime (e.g., App Engine default) to impersonate this service account
+gcloud iam service-accounts add-iam-policy-binding $SERVICE_ACCOUNT_EMAIL \
+  --member="serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com" \
+  --role="roles/iam.serviceAccountTokenCreator" \
+  --project=$PROJECT_ID
 
 # Firestore access
 gcloud projects add-iam-policy-binding $PROJECT_ID \
@@ -152,32 +156,25 @@ gcloud app browse --project=$PROJECT_ID
 curl https://${PROJECT_ID}.an.r.appspot.com/healthz
 ```
 
-## 9. Configure Cloud Scheduler (Periodic Execution)
+## 9. Configure App Engine Cron (Periodic Execution)
 
-Schedule `/tasks/scan`:
+Create `cron.yaml`:
 
-```bash
-SERVICE_URL="https://${PROJECT_ID}.an.r.appspot.com"
-
-gcloud scheduler jobs create http meet-quiz-scan \
-  --location=$REGION \
-  --schedule="0 * * * *" \
-  --uri="${SERVICE_URL}/tasks/scan" \
-  --http-method=POST \
-  --oidc-service-account-email=$SERVICE_ACCOUNT_EMAIL \
-  --oidc-token-audience=$SERVICE_URL
+```yaml
+cron:
+  - description: "Scan Drive folder for new recordings"
+    url: /tasks/scan
+    schedule: every 1 hours
+    target: default
 ```
 
-Example schedules:
-- `0 * * * *` - Every hour at 0 minutes
-- `*/30 * * * *` - Every 30 minutes
-- `0 9 * * *` - Daily at 9:00 AM
-
-Manual execution:
+Deploy cron:
 
 ```bash
-gcloud scheduler jobs run meet-quiz-scan --location=$REGION
+gcloud app deploy cron.yaml --project=$PROJECT_ID
 ```
+
+Update schedules by editing `cron.yaml` and re-running `gcloud app deploy cron.yaml`. See [App Engine Cron syntax](https://cloud.google.com/appengine/docs/standard/scheduling-jobs-with-cron-yaml) for more patterns.
 
 ## 10. Authentication Setup (Recommended)
 

@@ -4,8 +4,8 @@ import { Hono } from "hono";
 import { DriveClient } from "./clients/drive.js";
 import { FormsClient } from "./clients/forms.js";
 import { GeminiClient } from "./clients/gemini.js";
-import { loadConfig } from "./config.js";
 import type { AppConfig } from "./config.js";
+import { loadConfig } from "./config.js";
 import { logger } from "./logger.js";
 import { MeetingFilesRepository } from "./repositories/meetingFilesRepository.js";
 import { ProcessingService } from "./services/processing.js";
@@ -40,10 +40,11 @@ async function bootstrap() {
   const app = new Hono();
 
   const repo = new MeetingFilesRepository({ collectionName: config.firestoreCollection });
-  const driveClient = new DriveClient();
+  const driveClient = new DriveClient({ serviceAccountEmail: config.serviceAccountEmail });
   const formsClient = new FormsClient({
     driveClient,
     outputFolderId: config.googleDriveOutputFolderId,
+    serviceAccountEmail: config.serviceAccountEmail,
   });
   const geminiClient = new GeminiClient({ modelName: config.geminiModel });
   const service = new ProcessingService({
