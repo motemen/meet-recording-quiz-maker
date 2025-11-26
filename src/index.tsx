@@ -32,6 +32,23 @@ const CopyIcon: FC<{ className?: string }> = ({ className }) => (
   </svg>
 );
 
+const CheckIcon: FC<{ className?: string }> = ({ className }) => (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    className={className}
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path d="M20 6 9 17l-5-5" />
+  </svg>
+);
+
 const Layout = jsxRenderer(({ children }) => (
   <html lang="en">
     <head>
@@ -58,13 +75,30 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
     if (!form || !statusEl) return;
 
     let pollTimer;
+    let copyResetTimer;
+    const copyIcon = copyBtn?.querySelector('[data-icon="copy"]');
+    const checkIcon = copyBtn?.querySelector('[data-icon="check"]');
+
+    const showCopyIcon = () => {
+      copyIcon?.classList.remove('hidden');
+      checkIcon?.classList.add('hidden');
+    };
+
+    const showCheckIconTemporarily = () => {
+      copyIcon?.classList.add('hidden');
+      checkIcon?.classList.remove('hidden');
+      if (copyResetTimer) clearTimeout(copyResetTimer);
+      copyResetTimer = setTimeout(showCopyIcon, 2000);
+    };
 
     copyBtn?.addEventListener('click', async () => {
       try {
         const email = copyBtn.dataset.email || '';
         await navigator.clipboard.writeText(email);
+        showCheckIconTemporarily();
       } catch (error) {
         console.error('copy failed', error);
+        showCopyIcon();
       }
     });
 
@@ -151,7 +185,8 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
               className="inline-flex items-center justify-center rounded-md border border-slate-300 p-1 text-slate-700 transition hover:border-indigo-300 hover:text-indigo-700 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
               aria-label="Copy service account email"
             >
-              <CopyIcon className="h-4 w-4" />
+              <CopyIcon className="h-4 w-4" data-icon="copy" />
+              <CheckIcon className="h-4 w-4 hidden text-emerald-600" data-icon="check" />
             </button>
           </span>{" "}
           to create a quiz.
