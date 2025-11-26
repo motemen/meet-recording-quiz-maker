@@ -4,7 +4,7 @@ import type { GeminiClient } from "../clients/gemini";
 import type { AppConfig } from "../config";
 import { logger } from "../logger.js";
 import type { MeetingFilesRepository } from "../repositories/meetingFilesRepository";
-import type { MeetingFile } from "../types";
+import type { MeetingFile, QuizPayload } from "../types";
 
 export interface ProcessingServiceDeps {
   config: AppConfig;
@@ -114,7 +114,9 @@ export class ProcessingService {
       usedAdditionalPrompt: Boolean(this.config.quizAdditionalPrompt),
     });
 
-    const form = await this.forms.createQuizForm(quizPayload);
+    const randomizedQuiz = this.shuffleQuizOptions(quizPayload);
+
+    const form = await this.forms.createQuizForm(randomizedQuiz);
     logger.info("process_file_form_created", {
       fileId,
       formId: form.formId,
@@ -146,5 +148,33 @@ export class ProcessingService {
   private hasMetadataChanged(existing: MeetingFile, meta: DriveFileMetadata): boolean {
     if (!existing.modifiedTime || !meta.modifiedTime) return false;
     return existing.modifiedTime !== meta.modifiedTime;
+  }
+
+  private shuffleQuizOptions(quiz: QuizPayload): QuizPayload {
+    return {
+      ...quiz,
+      questions: quiz.questions.map((question) => {
+        const safeCorrectIndex = Math.max(
+          0,
+          Math.min(question.options.length - 1, question.correctOptionIndex),
+        );
+        const indexedOptions = question.options.map((value, index) => ({
+          value,
+          originalIndex: index,
+        }));
+        for (let i = indexedOptions.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [indexedOptions[i], indexedOptions[j]] = [indexedOptions[j], indexedOptions[i]];
+        }
+        const newCorrectIndex = indexedOptions.findIndex(
+          (option) => option.originalIndex === safeCorrectIndex,
+        );
+        return {
+          ...question,
+          options: indexedOptions.map((option) => option.value),
+          correctOptionIndex: newCorrectIndex >= 0 ? newCorrectIndex : 0,
+        };
+      }),
+    };
   }
 }
