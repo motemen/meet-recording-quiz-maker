@@ -11,16 +11,16 @@ export interface CreateFormResult {
 }
 
 export interface FormsClientOptions {
-  driveClient?: DriveClient;
-  outputFolderId?: string;
+  driveClient: DriveClient;
+  outputFolderId: string;
   serviceAccountEmail: string;
 }
 
 export class FormsClient {
   private authPromise: Promise<OAuth2Client>;
   private formsPromise: Promise<forms_v1.Forms>;
-  private driveClient: DriveClient | null;
-  private outputFolderId?: string;
+  private driveClient: DriveClient;
+  private outputFolderId: string;
 
   constructor(options: FormsClientOptions) {
     const scopes = [
@@ -29,15 +29,8 @@ export class FormsClient {
     ];
     this.authPromise = createImpersonatedAuthClient(options.serviceAccountEmail, scopes);
     this.formsPromise = this.authPromise.then((auth) => google.forms({ version: "v1", auth }));
-    this.driveClient = options.driveClient ?? null;
+    this.driveClient = options.driveClient;
     this.outputFolderId = options.outputFolderId;
-
-    // Validate that driveClient is provided when outputFolderId is specified
-    if (this.outputFolderId && !this.driveClient) {
-      throw new Error(
-        "driveClient is required when outputFolderId is specified. Cannot move forms without DriveClient.",
-      );
-    }
   }
 
   async createBlankForm(title: string): Promise<CreateFormResult> {
@@ -65,12 +58,6 @@ export class FormsClient {
   }
 
   async createQuizForm(quiz: QuizPayload): Promise<CreateFormResult> {
-    if (!this.outputFolderId || !this.driveClient) {
-      throw new Error(
-        "outputFolderId and driveClient are required when creating quiz forms in Drive",
-      );
-    }
-
     // Service accounts cannot create the form in their own drive space, so create
     // the shell file directly in the shared output folder via Drive first.
     const formShell = await this.driveClient.createFileInFolder(
@@ -173,9 +160,6 @@ export class FormsClient {
   }
 
   private async moveFormToOutputFolder(formId: string): Promise<void> {
-    if (!this.outputFolderId || !this.driveClient) {
-      return;
-    }
     try {
       await this.driveClient.moveFileToFolder(formId, this.outputFolderId);
       logger.info("form_moved_to_output_folder", {

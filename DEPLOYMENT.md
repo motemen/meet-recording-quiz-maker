@@ -122,7 +122,7 @@ env_variables:
   FIRESTORE_COLLECTION: "meetingFiles"
   GOOGLE_GENERATIVE_AI_API_KEY: "your-gemini-key"
   GOOGLE_DRIVE_FOLDER_ID: "optional-folder-id"
-  GOOGLE_DRIVE_OUTPUT_FOLDER_ID: "optional-output-folder-id"
+  GOOGLE_DRIVE_OUTPUT_FOLDER_ID: "required-output-folder-id"
   GEMINI_MODEL: "gemini-2.5-flash"
   QUIZ_ADDITIONAL_PROMPT: ""
   GOOGLE_ALLOWED_DOMAIN: ""
