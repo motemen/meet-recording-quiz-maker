@@ -1,4 +1,3 @@
-import React from "react";
 import { renderToString } from "react-dom/server";
 import { App } from "./ssr/App.js";
 import type { AppState, RenderResult } from "./ssr/types.js";

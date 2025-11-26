@@ -1,13 +1,15 @@
 import "dotenv/config";
-import type { HttpBindings } from "@hono/node-server";
-import { getRequestListener } from "@hono/node-server";
-import { createServer } from "node:http";
 import { readFile } from "node:fs/promises";
+import { createServer } from "node:http";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
+
+import type { HttpBindings } from "@hono/node-server";
+import { getRequestListener } from "@hono/node-server";
 import { Hono } from "hono";
 import { serveStatic } from "hono/serve-static.module";
 import { createServer as createViteServer, type ViteDevServer } from "vite";
+
 import { DriveClient } from "./clients/drive.js";
 import { FormsClient } from "./clients/forms.js";
 import { GeminiClient } from "./clients/gemini.js";
@@ -16,9 +18,9 @@ import { loadConfig } from "./config.js";
 import { logger } from "./logger.js";
 import { DriveFilesRepository } from "./repositories/driveFilesRepository.js";
 import { ProcessingService } from "./services/processing.js";
+import type { AppState } from "./ssr/types.js";
 import { extractFileIdFromUrl } from "./utils/drive.js";
 import { accessSecretPayload } from "./utils/secretManager.js";
-import type { AppState } from "./ssr/types.js";
 
 type RenderContext = {
   renderPage: (url: string, state: AppState) => Promise<string>;
@@ -187,7 +189,7 @@ async function createRenderer(
         return template
           .replace("<!--app-html-->", html)
           .replace("<!--app-head-->", head ?? "")
-          .replace("__INITIAL_STATE__", escapeState(state));
+          .replace('"__INITIAL_STATE__"', escapeState(state));
       },
     };
   }
@@ -201,7 +203,7 @@ async function createRenderer(
       return template
         .replace("<!--app-html-->", html)
         .replace("<!--app-head-->", head ?? "")
-        .replace("__INITIAL_STATE__", escapeState(state));
+        .replace('"__INITIAL_STATE__"', escapeState(state));
     },
   };
 }

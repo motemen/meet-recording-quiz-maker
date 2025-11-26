@@ -1,19 +1,19 @@
-import { useEffect, useMemo, useRef, useState } from "react";
 import type { FormEvent } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { DriveFile } from "../types.js";
 import type { AppState } from "./types.js";
 
 function formatStatus(record?: DriveFile) {
   if (!record) return "";
-  const lines = ["Status: " + record.status];
-  if (record.title) lines.push("Title: " + record.title);
-  if (record.formUrl) lines.push("Form URL: " + record.formUrl);
+  const lines = [`Status: ${record.status}`];
+  if (record.title) lines.push(`Title: ${record.title}`);
+  if (record.formUrl) lines.push(`Form URL: ${record.formUrl}`);
   if (record.progress) {
     const { step, message, percent } = record.progress;
     const percentText = typeof percent === "number" ? `${percent}% ` : "";
     lines.push(`Progress: ${percentText}${step}${message ? ` (${message})` : ""}`);
   }
-  if (record.error) lines.push("Error: " + record.error);
+  if (record.error) lines.push(`Error: ${record.error}`);
   return lines.join("\n");
 }
 
@@ -163,9 +163,12 @@ export function App({ initialState }: { initialState: AppState }) {
         </p>
       ) : null}
 
-      <pre className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800" role="status">
+      <output
+        className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800"
+        aria-live="polite"
+      >
         {statusText || "Enter a Drive URL to create a quiz."}
-      </pre>
+      </output>
     </main>
   );
 }
