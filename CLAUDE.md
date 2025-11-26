@@ -54,8 +54,8 @@ See `README.md` for optional variables.
 ### API Endpoints
 - `POST /tasks/scan`: Scans Drive folder for new/changed files
 - `POST /tasks/process`: Processes a single file by fileId
-- `POST /manual`: Processes a file from a Drive URL
-- `GET /files/:fileId`: Returns file status and metadata
+- `POST /process`: Enqueues processing from a Drive URL, returns quickly; progress available via `/files/:fileId`
+- `GET /files/:fileId`: Returns file status, progress, and metadata
 - `GET /`: Minimal UI for manual submission
 
 ## Working with Claude

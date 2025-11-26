@@ -1,8 +1,22 @@
 export type ProcessingStatus = "pending" | "processing" | "succeeded" | "failed";
 
+export type ProcessingStep =
+  | "queued"
+  | "metadata"
+  | "transcript"
+  | "quiz"
+  | "form"
+  | "done"
+  | "error";
+
+export interface ProcessingProgress {
+  step: ProcessingStep;
+  message?: string;
+  percent?: number;
+}
+
 export interface MeetingFile {
   fileId: string;
-  folderId?: string;
   title?: string;
   status: ProcessingStatus;
   modifiedTime?: string;
@@ -11,6 +25,7 @@ export interface MeetingFile {
   geminiSummary?: string;
   questionCount?: number;
   error?: string;
+  progress?: ProcessingProgress;
   createdAt: string;
   updatedAt: string;
 }

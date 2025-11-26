@@ -4,7 +4,7 @@ import type { GeminiClient } from "../clients/gemini";
 import type { AppConfig } from "../config";
 import { logger } from "../logger.js";
 import type { MeetingFilesRepository } from "../repositories/meetingFilesRepository";
-import type { MeetingFile, QuizPayload } from "../types";
+import type { MeetingFile, ProcessingProgress, ProcessingStep, QuizPayload } from "../types";
 
 export interface ProcessingServiceDeps {
   config: AppConfig;
@@ -66,6 +66,38 @@ export class ProcessingService {
     return summary;
   }
 
+  async enqueueProcessing(input: {
+    fileId: string;
+    force?: boolean;
+    questionCount?: number;
+  }): Promise<MeetingFile> {
+    const { fileId, force = false, questionCount = 10 } = input;
+    const existing = await this.repo.get(fileId);
+    if (existing && existing.status === "succeeded" && !force) {
+      return existing;
+    }
+
+    await this.repo.setStatus(fileId, "processing", {
+      progress: { step: "queued", message: "Queued for processing", percent: 0 },
+      questionCount,
+    });
+
+    void this.processFile({ fileId, force, questionCount }).catch((error) => {
+      const message = error instanceof Error && error.message ? error.message : "Processing failed";
+      logger.error("enqueue_processing_failed", { fileId, error });
+      void this.repo.setStatus(fileId, "failed", {
+        error: message,
+        progress: { step: "error", message, percent: 100 },
+      });
+    });
+
+    const record = await this.repo.get(fileId);
+    if (!record) {
+      throw new Error("Failed to enqueue processing");
+    }
+    return record;
+  }
+
   async processFile(input: {
     fileId: string;
     force?: boolean;
@@ -86,59 +118,73 @@ export class ProcessingService {
       return existing;
     }
 
-    const meta = metadata ?? (await this.drive.getFileMetadata(fileId));
-    const title = meta.name ?? `Meeting ${fileId}`;
+    try {
+      const meta = metadata ?? (await this.drive.getFileMetadata(fileId));
+      const title = meta.name ?? `Meeting ${fileId}`;
 
-    await this.repo.setStatus(fileId, "processing", {
-      folderId: this.config.googleDriveFolderId,
-      title,
-      modifiedTime: meta.modifiedTime,
-      questionCount,
-    });
+      await this.repo.setStatus(fileId, "processing", {
+        title,
+        modifiedTime: meta.modifiedTime,
+        questionCount,
+        progress: { step: "metadata", message: "Metadata fetched", percent: 10 },
+      });
 
-    const transcript = await this.drive.exportDocumentText(fileId);
-    logger.info("process_file_transcript_fetched", {
-      fileId,
-      transcriptLength: transcript.length,
-    });
-    const quizPayload = await this.gemini.generateQuiz({
-      title,
-      transcript,
-      questionCount,
-      additionalPrompt: this.config.quizAdditionalPrompt,
-    });
-    logger.info("process_file_quiz_generated", {
-      fileId,
-      questionCount: quizPayload.questions.length,
-      hasSummary: Boolean(quizPayload.summary),
-      usedAdditionalPrompt: Boolean(this.config.quizAdditionalPrompt),
-    });
+      const transcript = await this.drive.exportDocumentText(fileId);
+      logger.info("process_file_transcript_fetched", {
+        fileId,
+        transcriptLength: transcript.length,
+      });
+      await this.updateProgress(fileId, "transcript", "Transcript fetched", 40);
 
-    const randomizedQuiz = this.shuffleQuizOptions(quizPayload);
+      const quizPayload = await this.gemini.generateQuiz({
+        title,
+        transcript,
+        questionCount,
+        additionalPrompt: this.config.quizAdditionalPrompt,
+      });
+      logger.info("process_file_quiz_generated", {
+        fileId,
+        questionCount: quizPayload.questions.length,
+        hasSummary: Boolean(quizPayload.summary),
+        usedAdditionalPrompt: Boolean(this.config.quizAdditionalPrompt),
+      });
+      await this.updateProgress(fileId, "quiz", "Quiz generated", 70);
 
-    const form = await this.forms.createQuizForm(randomizedQuiz);
-    logger.info("process_file_form_created", {
-      fileId,
-      formId: form.formId,
-      formUrl: form.formUrl,
-    });
+      const randomizedQuiz = this.shuffleQuizOptions(quizPayload);
 
-    await this.repo.setStatus(fileId, "succeeded", {
-      folderId: this.config.googleDriveFolderId,
-      title,
-      modifiedTime: meta.modifiedTime,
-      formId: form.formId,
-      formUrl: form.formUrl,
-      geminiSummary: quizPayload.summary,
-      questionCount: quizPayload.questions.length,
-    });
+      const form = await this.forms.createQuizForm(randomizedQuiz);
+      logger.info("process_file_form_created", {
+        fileId,
+        formId: form.formId,
+        formUrl: form.formUrl,
+      });
+      await this.updateProgress(fileId, "form", "Form created", 90);
 
-    const record = await this.repo.get(fileId);
-    if (!record) {
-      throw new Error("Failed to read record after processing");
+      await this.repo.setStatus(fileId, "succeeded", {
+        title,
+        modifiedTime: meta.modifiedTime,
+        formId: form.formId,
+        formUrl: form.formUrl,
+        geminiSummary: quizPayload.summary,
+        questionCount: quizPayload.questions.length,
+        progress: { step: "done", message: "Completed", percent: 100 },
+      });
+
+      const record = await this.repo.get(fileId);
+      if (!record) {
+        throw new Error("Failed to read record after processing");
+      }
+      logger.info("process_file_complete", { fileId, status: record.status });
+      return record;
+    } catch (error) {
+      const message = error instanceof Error && error.message ? error.message : "Processing failed";
+      await this.repo.setStatus(fileId, "failed", {
+        error: message,
+        progress: { step: "error", message, percent: 100 },
+      });
+      logger.error("process_file_failed", { fileId, error });
+      throw error;
     }
-    logger.info("process_file_complete", { fileId, status: record.status });
-    return record;
   }
 
   async getStatus(fileId: string): Promise<MeetingFile | undefined> {
@@ -176,5 +222,15 @@ export class ProcessingService {
         };
       }),
     };
+  }
+
+  private async updateProgress(
+    fileId: string,
+    step: ProcessingStep,
+    message: string,
+    percent: number,
+  ): Promise<void> {
+    const progress: ProcessingProgress = { step, message, percent };
+    await this.repo.setStatus(fileId, "processing", { progress });
   }
 }

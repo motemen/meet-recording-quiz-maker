@@ -24,6 +24,8 @@ const CopyIcon: FC<{ className?: string }> = ({ className }) => (
     strokeLinecap="round"
     strokeLinejoin="round"
     className={className}
+    aria-hidden="true"
+    focusable="false"
   >
     <rect width="14" height="14" x="8" y="8" rx="2" ry="2" />
     <path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h8" />
@@ -71,6 +73,11 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
       let text = 'Status: ' + record.status;
       if (record.title) text += '\\nTitle: ' + record.title;
       if (record.formUrl) text += '\\nForm URL: ' + record.formUrl;
+      if (record.progress) {
+        const { step, message, percent } = record.progress;
+        const percentText = typeof percent === 'number' ? percent + '% ' : '';
+        text += '\\nProgress: ' + percentText + step + (message ? ' (' + message + ')' : '');
+      }
       if (record.error) text += '\\nError: ' + record.error;
       statusEl.textContent = text;
     };
@@ -109,7 +116,7 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
       statusEl.textContent = 'Submitting...';
       if (submitBtn) submitBtn.disabled = true;
       try {
-        const resp = await fetch('/manual', {
+        const resp = await fetch('/process', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ driveUrl, force })
@@ -130,7 +137,9 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
   return (
     <>
       <header className="space-y-4">
-        <h1 className="text-3xl font-bold leading-tight text-slate-900">Meet Recording Quiz Maker</h1>
+        <h1 className="text-3xl font-bold leading-tight text-slate-900">
+          Meet Recording Quiz Maker
+        </h1>
         <p className="text-base text-slate-700">
           Share the document with{" "}
           <span className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-2 py-1 text-slate-900 transition hover:bg-slate-200 focus-within:bg-slate-200">
@@ -280,7 +289,7 @@ async function bootstrap() {
     }
   });
 
-  app.post("/manual", async (c) => {
+  app.post("/process", async (c) => {
     const body = await readJsonBody<{
       driveUrl?: unknown;
       force?: unknown;
@@ -303,7 +312,7 @@ async function bootstrap() {
       return c.json({ error: "driveUrl is invalid or missing file id" }, 400);
     }
 
-    logger.info("http_manual_requested", {
+    logger.info("http_process_requested_from_drive_url", {
       driveUrl,
       fileId,
       force: !!force,
@@ -311,16 +320,16 @@ async function bootstrap() {
     });
 
     try {
-      const record = await service.processFile({
+      const record = await service.enqueueProcessing({
         fileId,
         force: !!force,
         questionCount: numericQuestionCount,
       });
       return c.json(record);
     } catch (error) {
-      logger.error("manual processing failed", { fileId, error });
+      logger.error("process enqueue failed", { fileId, error });
       const errorMessage =
-        error instanceof Error && error.message ? error.message : "manual processing failed";
+        error instanceof Error && error.message ? error.message : "processing enqueue failed";
       return c.json({ error: errorMessage, details: String(error) }, 500);
     }
   });
