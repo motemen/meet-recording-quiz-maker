@@ -124,7 +124,6 @@ env_variables:
   GOOGLE_DRIVE_OUTPUT_FOLDER_ID: "required-output-folder-id"
   GEMINI_MODEL: "gemini-2.5-flash"
   QUIZ_ADDITIONAL_PROMPT: ""
-  GOOGLE_ALLOWED_DOMAIN: ""
   PORT: "8080"
 ```
 

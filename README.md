@@ -26,7 +26,6 @@ Optional:
 - `GOOGLE_DRIVE_FOLDER_ID`: target Drive folder to scan. Required for `/tasks/scan` endpoint; not needed for `/process`.
 - `GEMINI_MODEL`: Gemini model name (default: `gemini-2.5-flash`).
 - `QUIZ_ADDITIONAL_PROMPT`: extra instructions appended to the Gemini prompt (e.g. `Use Japanese`).
-- `GOOGLE_ALLOWED_DOMAIN`: optional domain check for owners.
 - `PORT`: server port (default: `8080`).
 
 Firestore collection name is fixed to `driveFiles`; no environment variable is needed.
