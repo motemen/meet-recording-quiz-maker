@@ -1,7 +1,11 @@
-import { Firestore } from "@google-cloud/firestore";
+import { Firestore, type FieldValue } from "@google-cloud/firestore";
 import type { DriveFile, ProcessingStatus } from "../types";
 
 const COLLECTION_NAME = "driveFiles";
+
+type DriveFileUpdate = {
+  [K in keyof DriveFile]?: DriveFile[K] | FieldValue;
+};
 
 export class DriveFilesRepository {
   private firestore: Firestore;
@@ -28,18 +32,19 @@ export class DriveFilesRepository {
   async setStatus(
     fileId: string,
     status: ProcessingStatus,
-    payload: Partial<DriveFile> = {},
+    payload: DriveFileUpdate = {},
   ): Promise<void> {
     const now = new Date().toISOString();
+    const createdAt = typeof payload.createdAt === "string" ? payload.createdAt : now;
     await this.collection()
       .doc(fileId)
       .set(
         {
           fileId,
           status,
-          createdAt: payload.createdAt ?? now,
-          updatedAt: now,
           ...payload,
+          createdAt,
+          updatedAt: now,
         },
         { merge: true },
       );

@@ -1,3 +1,4 @@
+import { FieldValue } from "@google-cloud/firestore";
 import type { DriveClient, DriveFileMetadata } from "../clients/drive";
 import type { FormsClient } from "../clients/forms";
 import type { GeminiClient } from "../clients/gemini";
@@ -77,7 +78,14 @@ export class ProcessingService {
       return existing;
     }
 
+    const clear = FieldValue.delete();
     await this.repo.setStatus(fileId, "processing", {
+      title: clear,
+      modifiedTime: clear,
+      formId: clear,
+      formUrl: clear,
+      geminiSummary: clear,
+      error: clear,
       progress: { step: "queued", message: "Queued for processing", percent: 0 },
       questionCount,
     });
@@ -118,6 +126,18 @@ export class ProcessingService {
       return existing;
     }
 
+    const clear = FieldValue.delete();
+    await this.repo.setStatus(fileId, "processing", {
+      title: clear,
+      modifiedTime: clear,
+      formId: clear,
+      formUrl: clear,
+      geminiSummary: clear,
+      error: clear,
+      progress: { step: "metadata", message: "Fetching metadata", percent: 5 },
+      questionCount,
+    });
+
     try {
       const meta = metadata ?? (await this.drive.getFileMetadata(fileId));
       const title = meta.name ?? `Meeting ${fileId}`;
@@ -129,6 +149,7 @@ export class ProcessingService {
         progress: { step: "metadata", message: "Metadata fetched", percent: 10 },
       });
 
+      await this.drive.logCaller();
       const transcript = await this.drive.exportDocumentText(fileId);
       logger.info("process_file_transcript_fetched", {
         fileId,
