@@ -77,12 +77,31 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
     const form = document.getElementById('manual-form');
     const statusEl = document.getElementById('status');
     const copyBtn = document.getElementById('copy-email');
+    const formLinkContainer = document.getElementById('form-link-container');
+    const formLink = document.getElementById('form-link');
     if (!form || !statusEl) return;
 
     let pollTimer;
     let copyResetTimer;
     const copyIcon = copyBtn?.querySelector('[data-icon="copy"]');
     const checkIcon = copyBtn?.querySelector('[data-icon="check"]');
+
+    const hideFormLink = () => {
+      if (formLinkContainer) formLinkContainer.classList.add('hidden');
+      if (formLink) {
+        formLink.removeAttribute('href');
+        formLink.removeAttribute('title');
+        formLink.textContent = '';
+      }
+    };
+
+    const showFormLink = (url) => {
+      if (!url || !formLinkContainer || !formLink) return;
+      formLink.href = url;
+      formLink.title = url;
+      formLink.textContent = 'Open generated form';
+      formLinkContainer.classList.remove('hidden');
+    };
 
     const showCopyIcon = () => {
       copyIcon?.classList.remove('opacity-0');
@@ -123,6 +142,12 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
       }
       if (record.error) text += '\\nError: ' + record.error;
       statusEl.textContent = text;
+
+      if (record.formUrl) {
+        showFormLink(record.formUrl);
+      } else {
+        hideFormLink();
+      }
     };
 
     const startPolling = (fileId) => {
@@ -156,6 +181,7 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
       }
 
       if (pollTimer) clearTimeout(pollTimer);
+      hideFormLink();
       statusEl.textContent = 'Submitting...';
       if (submitBtn) submitBtn.disabled = true;
       try {
@@ -234,6 +260,24 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
       </form>
 
       <pre id="status" className="whitespace-pre-wrap text-sm leading-relaxed text-slate-800" />
+
+      <div
+        id="form-link-container"
+        className="hidden rounded-lg border border-indigo-100 bg-white p-4 text-sm shadow-sm"
+      >
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <p className="font-semibold text-slate-900">Quiz form is ready</p>
+            <p className="text-slate-600">Open the generated Google Form to review or share.</p>
+          </div>
+          <a
+            id="form-link"
+            className="inline-flex items-center justify-center gap-2 rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            target="_blank"
+            rel="noreferrer"
+          />
+        </div>
+      </div>
 
       <script dangerouslySetInnerHTML={{ __html: submissionScript }} />
     </>
