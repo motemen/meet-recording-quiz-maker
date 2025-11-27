@@ -99,6 +99,7 @@ export class DriveClient {
       const res = await drive.files.get({
         fileId,
         fields: "id, name, mimeType, modifiedTime, properties",
+        supportsAllDrives: true,
       });
 
       if (!res.data.id) {
