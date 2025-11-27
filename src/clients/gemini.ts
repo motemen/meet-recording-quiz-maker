@@ -65,6 +65,7 @@ export class GeminiClient {
 You are creating a quiz based on a meeting transcript titled "${title}".
 Generate ${questionCount} multiple-choice questions that test understanding of the meeting.
 Return JSON that matches the provided schema. Use exactly ${questionCount} questions and at least 4 plausible options per question. The correctOptionIndex must be 0-based.
+Options will be shuffled before being shown to users, so avoid answers that rely on option order (e.g., "all of the above", "A and B") and make each option standalone.
 
 ${extraSection}Transcript:
 ${transcript}
