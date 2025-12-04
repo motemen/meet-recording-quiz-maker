@@ -70,9 +70,10 @@ const Layout = jsxRenderer(({ children }) => (
 
 type HomePageProps = {
   serviceAccountEmail: string;
+  outputFolderUrl: string;
 };
 
-const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
+const HomePage: FC<HomePageProps> = ({ serviceAccountEmail, outputFolderUrl }) => {
   const submissionScript = `(() => {
     const form = document.getElementById('manual-form');
     const statusEl = document.getElementById('status');
@@ -238,6 +239,20 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail }) => {
           </span>{" "}
           to create a quiz.
         </p>
+        <div className="flex flex-col gap-2 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="font-semibold">Output folder</div>
+          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
+            <p className="text-indigo-900">Generated quizzes are saved here.</p>
+            <a
+              href={outputFolderUrl}
+              target="_blank"
+              rel="noreferrer"
+              className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+            >
+              Open output folder
+            </a>
+          </div>
+        </div>
       </header>
 
       <form id="manual-form" className="space-y-4">
@@ -309,6 +324,7 @@ async function ensureGeminiApiKey(config: AppConfig) {
 async function bootstrap() {
   const config = loadConfig();
   await ensureGeminiApiKey(config);
+  const outputFolderUrl = `https://drive.google.com/drive/folders/${config.googleDriveOutputFolderId}`;
   const app = new Hono();
 
   app.use("/*", Layout);
@@ -441,7 +457,14 @@ async function bootstrap() {
     return c.json(record);
   });
 
-  app.get("/", (c) => c.render(<HomePage serviceAccountEmail={config.serviceAccountEmail} />));
+  app.get("/", (c) =>
+    c.render(
+      <HomePage
+        serviceAccountEmail={config.serviceAccountEmail}
+        outputFolderUrl={outputFolderUrl}
+      />,
+    ),
+  );
 
   const port = config.port;
   serve(
