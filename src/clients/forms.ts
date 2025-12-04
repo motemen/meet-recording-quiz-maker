@@ -1,6 +1,5 @@
 import type { OAuth2Client } from "google-auth-library";
 import { type forms_v1, google } from "googleapis";
-import { logger } from "../logger.js";
 import type { QuizPayload } from "../types";
 import { createImpersonatedAuthClient } from "../utils/googleAuth.js";
 import type { DriveClient } from "./drive";
@@ -135,23 +134,6 @@ export class FormsClient {
       formId,
       requestBody: { requests: deleteRequests },
     });
-  }
-
-  private async moveFormToOutputFolder(formId: string): Promise<void> {
-    try {
-      await this.driveClient.moveFileToFolder(formId, this.outputFolderId);
-      logger.info("form_moved_to_output_folder", {
-        formId,
-        outputFolderId: this.outputFolderId,
-      });
-    } catch (error) {
-      logger.error("failed_to_move_form", {
-        formId,
-        outputFolderId: this.outputFolderId,
-        error,
-      });
-      // Don't fail the entire operation if moving fails
-    }
   }
 
   private async publishForm(formId: string): Promise<void> {

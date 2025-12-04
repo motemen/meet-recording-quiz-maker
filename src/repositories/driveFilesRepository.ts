@@ -1,4 +1,4 @@
-import { Firestore, type FieldValue } from "@google-cloud/firestore";
+import { type FieldValue, Firestore } from "@google-cloud/firestore";
 import type { DriveFile, ProcessingStatus } from "../types";
 
 const COLLECTION_NAME = "driveFiles";
