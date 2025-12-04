@@ -1,0 +1,14 @@
+runtime: nodejs20
+env: standard
+entrypoint: npm run start
+
+env_variables:
+  # Provide either GOOGLE_GENERATIVE_AI_API_KEY or GOOGLE_GENERATIVE_AI_API_KEY_SECRET
+  GOOGLE_GENERATIVE_AI_API_KEY: "your-gemini-key"
+  # GOOGLE_GENERATIVE_AI_API_KEY_SECRET: "projects/your-project/secrets/gemini-api-key/versions/latest"
+  SERVICE_ACCOUNT_EMAIL: "your-sa@your-project.iam.gserviceaccount.com"
+  GOOGLE_DRIVE_OUTPUT_FOLDER_ID: "shared-drive-folder-id"
+  GEMINI_MODEL: "gemini-2.5-flash"
+  QUIZ_ADDITIONAL_PROMPT: ""
+  QUIZ_QUESTION_COUNT: "10"  # optional default when request omits questionCount
+  PORT: "8080"
