@@ -124,6 +124,7 @@ env_variables:
   GOOGLE_DRIVE_OUTPUT_FOLDER_ID: "shared-drive-output-folder-id"  # shared drive recommended
   GEMINI_MODEL: "gemini-2.5-flash"
   QUIZ_ADDITIONAL_PROMPT: ""
+  QUIZ_QUESTION_COUNT: "10"  # optional default when request omits questionCount
   PORT: "8080"
 ```
 

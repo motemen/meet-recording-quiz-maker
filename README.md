@@ -25,6 +25,7 @@ Optional:
 
 - `GEMINI_MODEL`: Gemini model name (default: `gemini-2.5-flash`).
 - `QUIZ_ADDITIONAL_PROMPT`: extra instructions appended to the Gemini prompt (e.g. `Use Japanese`).
+- `QUIZ_QUESTION_COUNT`: default number of questions when not provided in the request (default: `10`).
 - `PORT`: server port (default: `8080`).
 
 Firestore collection name is fixed to `driveFiles`; no environment variable is needed.
@@ -38,7 +39,7 @@ Permissions (service account used by App Engine):
 ## Endpoints
 
 - `POST /tasks/process` — body `{ fileId, force?, questionCount? }` processes one file.
-- `POST /process` — body `{ driveUrl, force?, questionCount? }` parses `fileId`, enqueues processing, and returns immediately. Firestore records now include a coarse `progress` hint.
+- `POST /process` — body `{ driveUrl, force?, questionCount? }` parses `fileId`, enqueues processing, and returns immediately. Firestore records now include a coarse `progress` hint. If `questionCount` is omitted, `QUIZ_QUESTION_COUNT` (or `10`) is used.
 - `GET /files/:fileId` — returns stored status/metadata.
 - `GET /` — minimal UI to paste a Drive URL.
 
@@ -53,7 +54,7 @@ Create a `.env` (see `.env.example`) to supply secrets/IDs; they are loaded via 
 
 ## Deployment
 
-See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on deploying to App Engine and setting up App Engine Cron.
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on deploying to App Engine.
 
 ## Next steps
 

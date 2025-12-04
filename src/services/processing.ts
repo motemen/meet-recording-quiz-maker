@@ -21,6 +21,7 @@ export class ProcessingService {
   private drive: DriveClient;
   private forms: FormsClient;
   private gemini: GeminiClient;
+  private defaultQuestionCount: number;
 
   constructor(deps: ProcessingServiceDeps) {
     this.config = deps.config;
@@ -28,6 +29,7 @@ export class ProcessingService {
     this.drive = deps.driveClient;
     this.forms = deps.formsClient;
     this.gemini = deps.geminiClient;
+    this.defaultQuestionCount = this.config.quizQuestionCount ?? 10;
   }
 
   async enqueueProcessing(input: {
@@ -35,7 +37,7 @@ export class ProcessingService {
     force?: boolean;
     questionCount?: number;
   }): Promise<DriveFile> {
-    const { fileId, force = false, questionCount = 10 } = input;
+    const { fileId, force = false, questionCount = this.defaultQuestionCount } = input;
     const existing = await this.repo.get(fileId);
     if (existing && existing.status === "succeeded" && !force) {
       return existing;
@@ -75,7 +77,7 @@ export class ProcessingService {
     metadata?: DriveFileMetadata;
     questionCount?: number;
   }): Promise<DriveFile> {
-    const { fileId, force = false, metadata, questionCount = 10 } = input;
+    const { fileId, force = false, metadata, questionCount = this.defaultQuestionCount } = input;
     logger.info("process_file_start", {
       fileId,
       force,
