@@ -237,22 +237,16 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail, outputFolderUrl }) =
               </span>
             </button>
           </span>{" "}
-          to create a quiz.
+          to create a quiz.{" "}
+          <a
+            href={outputFolderUrl}
+            target="_blank"
+            rel="noreferrer"
+            className="rounded-md border border-indigo-300 bg-white px-2 py-1.5 text-sm text-indigo-700 shadow-sm transition hover:border-indigo-400 hover:bg-indigo-50 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+          >
+            Open output folder
+          </a>
         </p>
-        <div className="flex flex-col gap-2 rounded-lg border border-indigo-100 bg-indigo-50 px-4 py-3 text-sm text-indigo-900 shadow-sm sm:flex-row sm:items-center sm:justify-between">
-          <div className="font-semibold">Output folder</div>
-          <div className="flex flex-col items-start gap-2 sm:flex-row sm:items-center sm:gap-3">
-            <p className="text-indigo-900">Generated quizzes are saved here.</p>
-            <a
-              href={outputFolderUrl}
-              target="_blank"
-              rel="noreferrer"
-              className="inline-flex items-center justify-center rounded-md bg-indigo-600 px-3 py-1.5 text-sm font-semibold text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
-            >
-              Open output folder
-            </a>
-          </div>
-        </div>
       </header>
 
       <form id="manual-form" className="space-y-4">
@@ -268,7 +262,7 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail, outputFolderUrl }) =
 
         <button
           type="submit"
-          className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
+          className="inline-flex items-center justify-center gap-2 rounded-lg bg-indigo-600 px-4 py-2 text-md font-semibold text-white shadow-sm transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
         >
           Create quiz
         </button>
