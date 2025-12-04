@@ -35,9 +35,9 @@ export REGION="asia-northeast1"  # App Engine location
 gcloud config set project $PROJECT_ID
 ```
 
-## 2. Create Service Account
+## 2. Create Drive/Forms Service Account
 
-Create a runtime service account and grant the needed permissions.
+Create a service account that will create files in Drive/Forms. Allow the App Engine runtime to impersonate it, and grant it write access to the output folder (place this folder on a shared drive).
 
 ```bash
 export SERVICE_ACCOUNT_NAME="meet-quiz-maker"
@@ -63,7 +63,7 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
   --role="roles/secretmanager.secretAccessor"
 ```
 
-**Drive/Forms scopes**: Either configure domain-wide delegation for the service account or share the Drive folder/Forms with `${SERVICE_ACCOUNT_EMAIL}`.
+**Drive/Forms scopes**: Either configure domain-wide delegation for the service account, or share the output folder (on a shared drive) and generated Forms with `${SERVICE_ACCOUNT_EMAIL}` with write access. The source documents must also be shared with at least viewer access.
 
 ### Using Domain-wide Delegation
 
@@ -78,7 +78,7 @@ gcloud projects add-iam-policy-binding $PROJECT_ID \
 
 ### Using Folder Sharing
 
-Share the target Drive folder with the service account and grant viewer permissions.
+Share the output folder on a shared drive with the service account and grant write (e.g., Content manager) access.
 
 ## 3. Initialize Firestore
 
@@ -120,7 +120,8 @@ Set environment variables:
 ```yaml
 env_variables:
   GOOGLE_GENERATIVE_AI_API_KEY: "your-gemini-key"
-  GOOGLE_DRIVE_OUTPUT_FOLDER_ID: "required-output-folder-id"
+  SERVICE_ACCOUNT_EMAIL: "your-sa@your-project.iam.gserviceaccount.com"
+  GOOGLE_DRIVE_OUTPUT_FOLDER_ID: "shared-drive-output-folder-id"  # shared drive recommended
   GEMINI_MODEL: "gemini-2.5-flash"
   QUIZ_ADDITIONAL_PROMPT: ""
   PORT: "8080"
