@@ -154,7 +154,7 @@ Make sure the App Engine default service account (or the one configured for the 
 ```bash
 gcloud app browse --project=$PROJECT_ID
 
-curl https://${PROJECT_ID}.an.r.appspot.com/healthz
+curl https://${PROJECT_ID}.appspot.com/healthz
 ```
 
 ## 9. Authentication Setup (Recommended)
