@@ -4,7 +4,7 @@ function log(level: "info" | "error" | "warn" | "debug", message: string, fields
   const payload = fields
     ? { ...normalize(fields), level, message, timestamp: new Date().toISOString() }
     : { level, message, timestamp: new Date().toISOString() };
-  // Console logging is enough for Cloud Run and can be ingested by Cloud Logging.
+  // Console logging is enough for App Engine and can be ingested by Cloud Logging.
   // Keep JSON flat for easier querying.
   console.log(JSON.stringify(payload));
 }

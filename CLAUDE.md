@@ -4,7 +4,7 @@ This document provides guidance for working with Claude on the Meet Recording Qu
 
 ## Project Overview
 
-This is a Cloud Run service that converts Google Meet recordings (transcripts stored as Google Docs in Drive) into Google Forms quizzes using Gemini AI, with state tracked in Firestore.
+This is an App Engine service that converts Google Meet recordings (transcripts stored as Google Docs in Drive) into Google Forms quizzes using Gemini AI, with state tracked in Firestore.
 
 ### Tech Stack
 - **Runtime**: Node.js 20+ with TypeScript
@@ -109,20 +109,20 @@ When writing complex features or significant refactors, use an ExecPlan (as desc
 
 ## Deployment
 
-This service is designed to run on Google Cloud Run. Cloud Run supports pnpm natively, so no Dockerfile is needed.
+This service is designed to run on App Engine Standard (single service).
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete deployment instructions, including:
 
 1. **Service Account**: Configure with Drive (read-only), Forms (create/body), and Firestore access
-2. **Cloud Run Deployment**: Deploy directly from source using `gcloud run deploy`
-3. **Environment Variables**: Configure all required env vars in Cloud Run
+2. **App Engine Deployment**: Deploy via `gcloud app deploy`
+3. **Environment Variables**: Configure all required env vars in App Engine
 4. **Authentication**: Optional IAP or OIDC token authentication for production
 5. **Monitoring**: View logs and metrics in Cloud Console
 
 ## Resources
 
 - **README.md**: Architecture and endpoint documentation
-- **DEPLOYMENT.md**: Detailed deployment instructions for Cloud Run and Cloud Scheduler
+- **DEPLOYMENT.md**: Detailed deployment instructions for App Engine
 - **AGENTS.md**: Guidance for developing with AI agents
 - **package.json**: Available scripts and dependencies
 - **.env.example**: Required environment variables
