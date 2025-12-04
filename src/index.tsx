@@ -82,6 +82,9 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail, outputFolderUrl }) =
     const formLink = document.getElementById('form-link');
     if (!form || !statusEl) return;
 
+    const defaultFormLinkText = 'Open generated form';
+    const defaultFormLinkHref = 'about:blank';
+
     let pollTimer;
     let copyResetTimer;
     const copyIcon = copyBtn?.querySelector('[data-icon="copy"]');
@@ -90,9 +93,10 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail, outputFolderUrl }) =
     const hideFormLink = () => {
       if (formLinkContainer) formLinkContainer.classList.add('hidden');
       if (formLink) {
-        formLink.removeAttribute('href');
+        formLink.href = defaultFormLinkHref;
         formLink.removeAttribute('title');
-        formLink.textContent = '';
+        formLink.setAttribute('aria-disabled', 'true');
+        formLink.textContent = defaultFormLinkText;
       }
     };
 
@@ -100,7 +104,8 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail, outputFolderUrl }) =
       if (!url || !formLinkContainer || !formLink) return;
       formLink.href = url;
       formLink.title = url;
-      formLink.textContent = 'Open generated form';
+      formLink.removeAttribute('aria-disabled');
+      formLink.textContent = defaultFormLinkText;
       formLinkContainer.classList.remove('hidden');
     };
 
@@ -281,10 +286,14 @@ const HomePage: FC<HomePageProps> = ({ serviceAccountEmail, outputFolderUrl }) =
           </div>
           <a
             id="form-link"
+            href="about:blank"
             className="inline-flex items-center justify-center gap-2 rounded-md bg-indigo-600 px-4 py-2 font-semibold text-white transition hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-indigo-300"
             target="_blank"
             rel="noreferrer"
-          />
+            aria-disabled="true"
+          >
+            Open generated form
+          </a>
         </div>
       </div>
 
