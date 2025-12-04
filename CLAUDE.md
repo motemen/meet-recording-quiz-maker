@@ -31,7 +31,6 @@ pnpm run format
 ### Environment Variables
 
 Create a `.env` file based on `.env.example`. Required variables:
-- `GOOGLE_DRIVE_FOLDER_ID`: Target Drive folder containing transcripts
 - `GOOGLE_GENERATIVE_AI_API_KEY`: API key for Gemini
 
 Firestore collection is fixed to `driveFiles`; no env is needed.
@@ -53,7 +52,6 @@ See `README.md` for optional variables.
 - **Firestore** (`src/repositories/driveFilesRepository.ts`): Tracks processing state
 
 ### API Endpoints
-- `POST /tasks/scan`: Scans Drive folder for new/changed files
 - `POST /tasks/process`: Processes a single file by fileId
 - `POST /process`: Enqueues processing from a Drive URL, returns quickly; progress available via `/files/:fileId`
 - `GET /files/:fileId`: Returns file status, progress, and metadata
@@ -117,10 +115,9 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for complete deployment instructions, inclu
 
 1. **Service Account**: Configure with Drive (read-only), Forms (create/body), and Firestore access
 2. **Cloud Run Deployment**: Deploy directly from source using `gcloud run deploy`
-3. **Cloud Scheduler**: Set up periodic calls to `/tasks/scan` using cron syntax
-4. **Environment Variables**: Configure all required env vars in Cloud Run
-5. **Authentication**: Optional IAP or OIDC token authentication for production
-6. **Monitoring**: View logs and metrics in Cloud Console
+3. **Environment Variables**: Configure all required env vars in Cloud Run
+4. **Authentication**: Optional IAP or OIDC token authentication for production
+5. **Monitoring**: View logs and metrics in Cloud Console
 
 ## Resources
 

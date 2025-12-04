@@ -30,43 +30,6 @@ export class ProcessingService {
     this.gemini = deps.geminiClient;
   }
 
-  async scanFolder(): Promise<{ processed: number; skipped: number; errors: number }> {
-    if (!this.config.googleDriveFolderId) {
-      throw new Error("GOOGLE_DRIVE_FOLDER_ID is required for folder scanning");
-    }
-    logger.info("scan_folder_start", { folderId: this.config.googleDriveFolderId });
-    const files = await this.drive.listFolderFiles(this.config.googleDriveFolderId);
-    logger.info("scan_folder_listed", { fileCount: files.length });
-
-    let processed = 0;
-    let skipped = 0;
-    let errors = 0;
-
-    for (const file of files) {
-      try {
-        const existing = await this.repo.get(file.id);
-        const unchanged =
-          existing && existing.status === "succeeded" && !this.hasMetadataChanged(existing, file);
-
-        if (unchanged) {
-          logger.debug("scan_file_skipped_unchanged", { fileId: file.id });
-          skipped += 1;
-          continue;
-        }
-
-        await this.processFile({ fileId: file.id, metadata: file });
-        processed += 1;
-      } catch (error) {
-        errors += 1;
-        logger.error("Failed processing file during scan", { fileId: file.id, error });
-      }
-    }
-
-    const summary = { processed, skipped, errors };
-    logger.info("scan_folder_complete", summary);
-    return summary;
-  }
-
   async enqueueProcessing(input: {
     fileId: string;
     force?: boolean;
@@ -210,11 +173,6 @@ export class ProcessingService {
 
   async getStatus(fileId: string): Promise<DriveFile | undefined> {
     return this.repo.get(fileId);
-  }
-
-  private hasMetadataChanged(existing: DriveFile, meta: DriveFileMetadata): boolean {
-    if (!existing.modifiedTime || !meta.modifiedTime) return false;
-    return existing.modifiedTime !== meta.modifiedTime;
   }
 
   private shuffleQuizOptions(quiz: QuizPayload): QuizPayload {

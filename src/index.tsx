@@ -349,26 +349,6 @@ async function bootstrap() {
     return c.json({ ok: true });
   });
 
-  app.post("/tasks/scan", async (c) => {
-    logger.info("http_scan_requested");
-    if (!config.googleDriveFolderId) {
-      return c.json(
-        {
-          error:
-            "GOOGLE_DRIVE_FOLDER_ID is not configured. Scan functionality requires a folder ID.",
-        },
-        400,
-      );
-    }
-    try {
-      const result = await service.scanFolder();
-      return c.json(result);
-    } catch (error) {
-      logger.error("scan failed", { error });
-      return c.json({ error: "scan failed", details: String(error) }, 500);
-    }
-  });
-
   app.post("/tasks/process", async (c) => {
     const body = await readJsonBody<{ fileId?: unknown; force?: unknown; questionCount?: unknown }>(
       c.req.raw,

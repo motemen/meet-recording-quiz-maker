@@ -4,8 +4,8 @@ App Engine service that turns Google Meet recordings (Docs transcripts in a Driv
 
 ## Architecture
 
-- App Engine service (Hono/Node) with routes for scanning (`/tasks/scan`), per-file processing (`/tasks/process`), Drive URL submission (`/process`), status lookup (`/files/:fileId`), and a minimal UI (`/`).
-- Drive client: lists files in configured folder (if `GOOGLE_DRIVE_FOLDER_ID` is set), fetches metadata, exports Docs to text.
+- App Engine service (Hono/Node) with routes for per-file processing (`/tasks/process`), Drive URL submission (`/process`), status lookup (`/files/:fileId`), and a minimal UI (`/`).
+- Drive client: fetches file metadata and exports Docs to text for supplied file IDs.
 - Gemini client: generates quiz JSON from transcript using Vercel AI SDK (`generateObject`) with schema validation.
 - Forms client: creates a quiz-form (radio MCQ) and returns `formId`/`formUrl`.
 - Firestore: collection (`driveFiles`) stores `fileId`, `status`, `modifiedTime`, `title`, `formId`, `formUrl`, `geminiSummary`, `questionCount`, timestamps, and `error`.
@@ -23,7 +23,6 @@ Required env vars:
 
 Optional:
 
-- `GOOGLE_DRIVE_FOLDER_ID`: target Drive folder to scan. Required for `/tasks/scan` endpoint; not needed for `/process`.
 - `GEMINI_MODEL`: Gemini model name (default: `gemini-2.5-flash`).
 - `QUIZ_ADDITIONAL_PROMPT`: extra instructions appended to the Gemini prompt (e.g. `Use Japanese`).
 - `PORT`: server port (default: `8080`).
@@ -32,16 +31,14 @@ Firestore collection name is fixed to `driveFiles`; no environment variable is n
 
 Permissions (service account used by App Engine):
 
-- Drive read-only for the folder (scanning).
 - Drive file scope (to move created forms to output folder).
 - Forms create/body scope.
 - Firestore access.
 
 ## Endpoints
 
-- `POST /tasks/scan` — scans `GOOGLE_DRIVE_FOLDER_ID` for new/changed files and processes them. Requires `GOOGLE_DRIVE_FOLDER_ID` to be configured.
 - `POST /tasks/process` — body `{ fileId, force?, questionCount? }` processes one file.
-- `POST /process` — body `{ driveUrl, force?, questionCount? }` parses `fileId`, enqueues processing, and returns immediately. Works without `GOOGLE_DRIVE_FOLDER_ID`. Firestore records now include a coarse `progress` hint.
+- `POST /process` — body `{ driveUrl, force?, questionCount? }` parses `fileId`, enqueues processing, and returns immediately. Firestore records now include a coarse `progress` hint.
 - `GET /files/:fileId` — returns stored status/metadata.
 - `GET /` — minimal UI to paste a Drive URL.
 
@@ -61,6 +58,5 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for detailed instructions on deploying to A
 ## Next steps
 
 - Run with real creds (`pnpm run dev`) and test `/tasks/process` on a sample Doc.
-- Configure App Engine Cron (`cron.yaml`) → `/tasks/scan`.
 - Decide UI auth (basic auth or IAP) and whether to write Drive file properties (processed/formUrl).
 - Add retries/backoff and monitoring once basic flow is verified.

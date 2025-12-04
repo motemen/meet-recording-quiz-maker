@@ -120,7 +120,6 @@ Set environment variables:
 ```yaml
 env_variables:
   GOOGLE_GENERATIVE_AI_API_KEY: "your-gemini-key"
-  GOOGLE_DRIVE_FOLDER_ID: "optional-folder-id"
   GOOGLE_DRIVE_OUTPUT_FOLDER_ID: "required-output-folder-id"
   GEMINI_MODEL: "gemini-2.5-flash"
   QUIZ_ADDITIONAL_PROMPT: ""
@@ -156,27 +155,7 @@ gcloud app browse --project=$PROJECT_ID
 curl https://${PROJECT_ID}.an.r.appspot.com/healthz
 ```
 
-## 9. Configure App Engine Cron (Periodic Execution)
-
-Create `cron.yaml`:
-
-```yaml
-cron:
-  - description: "Scan Drive folder for new recordings"
-    url: /tasks/scan
-    schedule: every 1 hours
-    target: default
-```
-
-Deploy cron:
-
-```bash
-gcloud app deploy cron.yaml --project=$PROJECT_ID
-```
-
-Update schedules by editing `cron.yaml` and re-running `gcloud app deploy cron.yaml`. See [App Engine Cron syntax](https://cloud.google.com/appengine/docs/standard/scheduling-jobs-with-cron-yaml) for more patterns.
-
-## 10. Authentication Setup (Recommended)
+## 9. Authentication Setup (Recommended)
 
 Enable IAP on the App Engine default service to restrict access.
 
@@ -196,7 +175,7 @@ gcloud iap web add-iam-policy-binding \
 
 An OAuth consent screen must be configured before enabling IAP.
 
-## 11. Logs and Monitoring
+## 10. Logs and Monitoring
 
 ```bash
 gcloud app logs read --project=$PROJECT_ID --limit=50
@@ -205,7 +184,7 @@ gcloud app logs tail --project=$PROJECT_ID
 
 View metrics and request stats in the [App Engine Console](https://console.cloud.google.com/appengine).
 
-## 12. Troubleshooting
+## 11. Troubleshooting
 
 - Check build logs if deployment fails (`gcloud app deploy --verbosity=debug`)
 - Verify service account permissions for Firestore, Secret Manager, Drive, and Forms
