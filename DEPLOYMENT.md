@@ -37,48 +37,34 @@ gcloud config set project $PROJECT_ID
 
 ## 2. Create Drive/Forms Service Account
 
-Create a service account that will create files in Drive/Forms. Allow the App Engine runtime to impersonate it, and grant it write access to the output folder (place this folder on a shared drive).
+Create a service account that will create files in Drive/Forms. Allow the App Engine runtime to impersonate it, and grant it write access to the output folder (place this folder on a shared drive). This service account is only for Drive/Forms; it does not access Firestore or Secret Manager.
 
 ```bash
 export SERVICE_ACCOUNT_NAME="meet-quiz-maker"
 export SERVICE_ACCOUNT_EMAIL="${SERVICE_ACCOUNT_NAME}@${PROJECT_ID}.iam.gserviceaccount.com"
+export RUNTIME_SERVICE_ACCOUNT="${PROJECT_ID}@appspot.gserviceaccount.com"  # or your custom App Engine runtime SA
 
 gcloud iam service-accounts create $SERVICE_ACCOUNT_NAME \
   --display-name="Meet Recording Quiz Maker Service Account"
 
 # Allow the runtime (e.g., App Engine default) to impersonate this service account
 gcloud iam service-accounts add-iam-policy-binding $SERVICE_ACCOUNT_EMAIL \
-  --member="serviceAccount:${PROJECT_ID}@appspot.gserviceaccount.com" \
+  --member="serviceAccount:${RUNTIME_SERVICE_ACCOUNT}" \
   --role="roles/iam.serviceAccountTokenCreator" \
   --project=$PROJECT_ID
 
-# Firestore access
+# Firestore access for the runtime service account
 gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+  --member="serviceAccount:${RUNTIME_SERVICE_ACCOUNT}" \
   --role="roles/datastore.user"
 
-# Secret Manager access (if using secrets)
+# Secret Manager access for the runtime service account (if using secrets)
 gcloud projects add-iam-policy-binding $PROJECT_ID \
-  --member="serviceAccount:${SERVICE_ACCOUNT_EMAIL}" \
+  --member="serviceAccount:${RUNTIME_SERVICE_ACCOUNT}" \
   --role="roles/secretmanager.secretAccessor"
 ```
 
-**Drive/Forms scopes**: Either configure domain-wide delegation for the service account, or share the output folder (on a shared drive) and generated Forms with `${SERVICE_ACCOUNT_EMAIL}` with write access. The source documents must also be shared with at least viewer access.
-
-### Using Domain-wide Delegation
-
-1. Go to [Google Admin Console](https://admin.google.com/)
-2. **Security > API controls > Domain-wide delegation**
-3. Add the service account client ID with scopes:
-   ```
-   https://www.googleapis.com/auth/drive.readonly
-   https://www.googleapis.com/auth/drive.file
-   https://www.googleapis.com/auth/forms.body
-   ```
-
-### Using Folder Sharing
-
-Share the output folder on a shared drive with the service account and grant write (e.g., Content manager) access.
+**Drive/Forms sharing**: Share the output folder (on a shared drive) and generated Forms with `${SERVICE_ACCOUNT_EMAIL}` with write access. The source documents must also be shared with at least viewer access.
 
 ## 3. Initialize Firestore
 
@@ -147,7 +133,7 @@ gcloud app create --region=$REGION
 gcloud app deploy app.yaml --project=$PROJECT_ID
 ```
 
-Make sure the App Engine default service account (or the one configured for the service) has Drive, Forms, Firestore, and Secret Manager access as needed.
+Make sure the App Engine runtime service account has Firestore and Secret Manager access; Drive/Forms actions use the impersonated service account created earlier.
 
 ## 8. Verify Deployment
 
@@ -189,6 +175,6 @@ View metrics and request stats in the [App Engine Console](https://console.cloud
 ## 11. Troubleshooting
 
 - Check build logs if deployment fails (`gcloud app deploy --verbosity=debug`)
-- Verify service account permissions for Firestore, Secret Manager, Drive, and Forms
+- Verify App Engine runtime service account permissions for Firestore/Secret Manager, and the impersonated Drive/Forms service account sharing/roles
 - Confirm Firestore collection exists
-- If Drive/Forms access fails, ensure domain-wide delegation or folder sharing is configured correctly
+- If Drive/Forms access fails, ensure folder sharing/permissions are configured correctly
